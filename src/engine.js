@@ -38,6 +38,9 @@
   let timestamp = 0;
   let observer;
   let toastTimer = 0;
+  let topEdgeTravel = 0;
+  let topEdgeTime = 0;
+  let topEdgeRelease = false;
 
   const host = document.createElement('div');
   host.id = 'mudra-smart-cursor-root';
@@ -67,6 +70,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
 .note{font-size:10px;color:#99abc3;line-height:1.5;margin-top:10px}
 #status{display:flex;align-items:center;gap:6px;color:#9acbde;font-size:10px}
 #dot{height:7px;width:7px;background:#39d69a;border-radius:50%;display:inline-block}
+#edgeHint{display:none;position:fixed;top:7px;left:50%;transform:translateX(-50%);padding:7px 13px;background:#10283ceF;color:#c4f4ff;border:1px solid #338bad;border-radius:99px;font-size:11px;white-space:nowrap;pointer-events:none;box-shadow:0 6px 20px #0006}
 #toast{display:none;position:fixed;bottom:335px;right:16px;max-width:270px;padding:9px 12px;border-radius:9px;background:#10283c;color:#dff8ff;border:1px solid #338bad;box-shadow:0 8px 25px #0008;font-size:11px;pointer-events:none}
 #panel.small{width:auto;min-width:174px}#panel.small #controls{display:none}
 @media(max-width:500px){#panel{right:9px;bottom:9px}}
@@ -74,6 +78,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
 <div id="target"></div>
 <div id="pointer"><svg viewBox="0 0 23 29" xmlns="http://www.w3.org/2000/svg"><path d="M2 1 L2 25 L8.6 19 L13.1 27 L17.1 25 L12.6 17 L21 16 Z" stroke="#10253c" stroke-width="2" fill="#e9f9ff"/></svg></div>
 <div id="ring"></div>
+<div id="edgeHint">↑ Keep moving up to unlock browser tabs</div>
 <div id="toast" role="status"></div>
 <div id="panel" role="region" aria-label="Mudra cursor controls">
 <header><div><div class="brand">MUDRA <span style="color:#49cee8">CURSOR</span></div><div class="sub">Web precision assist</div></div><div style="display:flex;gap:4px"><button class="icon" id="min" title="Minimize" aria-label="Minimize panel">-</button><button class="icon" id="close" title="Close engine" aria-label="Close engine">×</button></div></header>
@@ -91,13 +96,14 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
   <div class="rlabel"><label for="sensitivity">Virtual sensitivity</label><output id="sensitivityOut"></output></div><input type="range" id="sensitivity" min="0.4" max="2.4" step="0.1">
   <div class="rlabel"><label for="dwellMs">Dwell time</label><output id="dwellOut"></output></div><input type="range" id="dwellMs" min="600" max="2000" step="50">
   <div id="status"><span id="dot"></span><span id="statusText">Normal HID mode</span></div>
-  <div class="note">Alt+Shift+C: re-center · Alt+Shift+P: virtual mode · Alt+Shift+M: panel · Esc: unlock. Browser may reject pointer lock. Assisted clicks and dwell are optional because they can activate website actions.</div>
+  <div class="note">Alt+Shift+C: re-center · Alt+Shift+P: virtual mode · Alt+Shift+M: panel · Push above the top edge or press Esc to unlock browser tabs. Browser may reject pointer lock. Assisted clicks and dwell are optional because they can activate website actions.</div>
 </div></div>`;
   document.documentElement.appendChild(host);
   const $ = id => root.getElementById(id);
   const targetVisual = $('target');
   const pointerVisual = $('pointer');
   const ring = $('ring');
+  const edgeHint = $('edgeHint');
   const panel = $('panel');
   const interactive = 'a[href],button,input:not([type="hidden"]),select,textarea,summary,[role="button"],[role="link"],[role="checkbox"],[tabindex]:not([tabindex="-1"])';
 
@@ -188,7 +194,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
   function scheduleDraw() { if (!raf && !dead) raf = requestAnimationFrame(() => { raf = 0; render(); }); }
   function render() {
     if (dead) return;
-    if (!active) { targetVisual.style.display = 'none'; pointerVisual.style.display = 'none'; resetDwell(); return; }
+    if (!active) { targetVisual.style.display = 'none'; pointerVisual.style.display = 'none'; edgeHint.style.display = 'none'; resetDwell(); return; }
+    edgeHint.style.display = locked && raw.y <= 14 ? 'block' : 'none';
     if (virtual) {
       pointerVisual.style.display = 'block';
       pointerVisual.style.left = pos.x + 'px'; pointerVisual.style.top = pos.y + 'px';
@@ -219,6 +226,22 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
       const scale = cfg.sensitivity * (near && cfg.precision ? cfg.fineScale : 1);
       raw.x = Math.max(2, Math.min(innerWidth - 2, raw.x + (ev.movementX || 0) * scale));
       raw.y = Math.max(2, Math.min(innerHeight - 2, raw.y + (ev.movementY || 0) * scale));
+      // Pointer Lock cannot enter Chrome's tab strip. Deliberately pushing
+      // upward beyond the page edge releases the *real* HID cursor.
+      // A 48px overshoot prevents accidental unlock on ordinary top-row clicks.
+      const dy = ev.movementY || 0;
+      const now = performance.now();
+      if (raw.y <= 8 && dy < 0) {
+        if (now - topEdgeTime > 900) topEdgeTravel = 0;
+        topEdgeTime = now;
+        topEdgeTravel += -dy;
+        if (topEdgeTravel >= 48) {
+          topEdgeTravel = 0;
+          topEdgeRelease = true;
+          document.exitPointerLock();
+          return;
+        }
+      } else if (raw.y > 30 || dy > 4) topEdgeTravel = 0;
       const alpha = Math.max(0.05, Math.min(1, cfg.smoothing));
       pos.x += (raw.x - pos.x) * alpha;
       pos.y += (raw.y - pos.y) * alpha;
@@ -236,6 +259,17 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
     if (isInternal(ev.target) && !locked) return;
     if (locked) {
       ev.preventDefault(); ev.stopImmediatePropagation();
+      // Pointer Lock delivers real clicks to the lock element rather than the
+      // visual position. Re-route only our own shadow-panel buttons/checkboxes.
+      const ownElement = typeof root.elementFromPoint === 'function'
+        ? root.elementFromPoint(pos.x, pos.y) : null;
+      if (ownElement && panel.contains(ownElement)) {
+        const button = ownElement.closest('button');
+        const checkbox = ownElement.closest('input[type="checkbox"]');
+        if (button) button.click();
+        else if (checkbox) checkbox.click();
+        return;
+      }
       if (selecting) activate(selecting, 'virtual');
       return;
     }
@@ -267,10 +301,20 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
     } catch (_) { note('Pointer Lock denied by browser or site.'); }
   }
   function onLockChange() {
+    const wasLocked = locked;
     locked = document.pointerLockElement === document.documentElement;
     virtual = locked;
-    if (locked) { pos.x = raw.x = innerWidth / 2; pos.y = raw.y = innerHeight / 2; note('Virtual cursor enabled. Esc to exit.'); }
-    else resetDwell();
+    topEdgeTravel = 0;
+    if (locked) {
+      pos.x = raw.x = innerWidth / 2; pos.y = raw.y = innerHeight / 2;
+      note('Virtual cursor enabled. Push past top edge for tabs, or press Esc.');
+    } else {
+      resetDwell();
+      if (wasLocked && topEdgeRelease) {
+        note('Browser navigation unlocked. Move the HID cursor to Chrome tabs. Re-enable virtual to return.');
+      }
+    }
+    topEdgeRelease = false;
     panelUpdate(); render();
   }
   function onLockError() { note('Pointer Lock unavailable on this page.'); }

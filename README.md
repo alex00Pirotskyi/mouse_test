@@ -10,6 +10,7 @@
 - Optional dwell activation with a stability region and adjustable delay.
 - Virtual cursor based on Pointer Lock and relative HID movement. Includes precision slowdown and configurable sensitivity.
 - Re-center the **virtual cursor**, with a button or `Alt+Shift+C`.
+- **Browser tab escape:** push the virtual pointer against the top edge and keep moving upward about 48px; Pointer Lock releases to the normal HID cursor, so you can reach Chrome's tab strip. Re-enable virtual mode after returning to the page. Pressing `Esc` also works. Browser APIs cannot directly move the OS cursor.
 - In-page control panel, per-origin preferences, presets via the landing page, and shortcuts.
 - Standalone bookmarklet (full source embedded, no remote script fetch) and optional Chrome MV3 extension.
 
@@ -41,6 +42,7 @@ Uses only `activeTab` and `scripting` permissions. No persistent all-sites acces
 | `Alt+Shift+M` | Collapse/expand floating panel |
 | `Alt+Shift+D` | Toggle dwell click |
 | `Esc` | Leave virtual Pointer Lock (native browser behavior) |
+| Push upward past top edge | Exit Pointer Lock and regain normal HID cursor to switch browser tabs |
 
 ## Important browser limitations
 
