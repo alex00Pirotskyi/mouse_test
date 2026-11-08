@@ -1,6 +1,7 @@
 import Foundation
 import CoreBluetooth
 import Network
+import AppKit
 
 // Mudra Smart Cursor Mac Companion.
 // Only reuses system-connected BLE peripherals exposing FFF0.
@@ -307,7 +308,17 @@ private final class StatusServer {
     func start() {
         listener.stateUpdateHandler = { state in
             switch state {
-            case .ready: print("Mudra Mac Bridge ready at http://127.0.0.1:8765/api/status")
+            case .ready:
+                print("Mudra Mac Bridge ready at http://127.0.0.1:8765/api/status")
+                // Finder launch is one action: start the helper and open the UI.
+                // Browser loopback consent may still be requested once.
+                if !CommandLine.arguments.contains("--no-browser") {
+                    DispatchQueue.main.async {
+                        if let url = URL(string: "https://alex00pirotskyi.github.io/mouse_test/") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }
+                }
             case .failed(let error): fputs("Local HTTP listener failed: \(error)\n", stderr)
             default: break
             }

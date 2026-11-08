@@ -8,11 +8,12 @@ re-pairing or connection to unpaired peripherals.
 
 1. On Windows 10/11, download the `MudraSmartCursorBridge-win-x64` workflow
    artifact from GitHub Actions, extract the outer zip and inner zip.
-2. Launch `MudraSmartCursorBridge.exe` (an unsigned local console tool).
-   Keep the console open. It binds **127.0.0.1:8765 only**.
+2. Double-click `MudraSmartCursorBridge.exe` (an unsigned local console tool).
+   It starts the local service and opens the Smart Cursor website automatically.
+   Keep the console running while using the band. It binds **127.0.0.1:8765 only**.
 3. Keep the Mudra Band normally paired/connected in Windows Settings.
-4. Open https://alex00pirotskyi.github.io/mouse_test/ and click
-   **Test and connect Mudra here** → **Connect local helper**.
+4. The website opens automatically. Click **Start Smart Cursor**; it checks
+   local status without a second Connect button.
 5. Allow Chrome's **Loopback network** permission if prompted. Air Touch status
    follows the firmware map; battery is shown if the Windows GATT battery read
    succeeds. Firmware Air Touch OFF releases virtual mode.

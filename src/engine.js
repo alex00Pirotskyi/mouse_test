@@ -99,9 +99,10 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
 <header><div><div class="brand">MUDRA <span style="color:#49cee8">CURSOR</span></div><div class="sub">Web precision assist</div></div><div style="display:flex;gap:4px"><button class="icon" id="min" title="Minimize" aria-label="Minimize panel">-</button><button class="icon" id="close" title="Close engine" aria-label="Close engine">×</button></div></header>
 <div id="controls">
   <div id="ble-card">
-    <div class="ble-line"><strong id="bleState">Local helper: Offline</strong><button id="bleConnect">Connect local helper</button></div>
+    <div class="ble-line"><strong id="bleState">Checking local helper…</strong><button id="bleConnect">Retry now</button></div>
     <div class="ble-line"><span id="bleAir">Air Touch: unknown</span><span id="bleBattery">Battery: —</span></div>
-    <div id="bleDetail" style="color:#8eafc4;font-size:10px">Uses your OS-connected Mudra. No Bluetooth scanning.</div>
+    <div id="bleDetail" style="color:#afcbdc;font-size:11px;line-height:1.5;overflow-wrap:anywhere">Checking whether the desktop companion is running…</div>
+    <div class="ble-line"><a href="http://127.0.0.1:8765/api/status" target="_blank" rel="noopener" style="color:#8bddf5;font-size:10px">Test local service</a><a href="https://github.com/alex00Pirotskyi/mouse_test#download-the-helper-for-your-os" target="_blank" rel="noopener" style="color:#8bddf5;font-size:10px">Get companion</a></div>
   </div>
   <div class="actions"><button id="center">◎ Re-center</button><button id="mode" class="primary">Waiting for Air Touch</button></div>
   <div class="flags">
@@ -116,7 +117,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
   <div class="rlabel"><label for="sensitivity">Virtual sensitivity</label><output id="sensitivityOut"></output></div><input type="range" id="sensitivity" min="0.4" max="2.4" step="0.1">
   <div class="rlabel"><label for="dwellMs">Dwell time</label><output id="dwellOut"></output></div><input type="range" id="dwellMs" min="600" max="2000" step="50">
   <div id="status"><span id="dot"></span><span id="statusText">Normal HID mode</span></div>
-  <div class="note">Run the Mac or Windows helper, then click Connect local helper. No Bluetooth scanning or re-pairing. Air Touch OFF → native HID; ON → virtual available after clicking. Shake to re-center; Esc unlocks browser tabs. Assisted clicks and dwell are optional because they can activate website actions.</div>
+  <div class="note">The cursor checks your local desktop companion automatically. No browser Bluetooth pairing. Air Touch OFF → native HID; ON → virtual available after clicking. Shake to re-center; Esc unlocks browser tabs.</div>
 </div></div>`;
   document.documentElement.appendChild(host);
   const $ = id => root.getElementById(id);
@@ -143,11 +144,11 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
     $('mode').textContent = locked ? 'Exit virtual' : airTouch === true && bleConnected ? 'Enter virtual' : 'Waiting for Air Touch';
     $('mode').disabled = !locked && !(bleConnected && airTouch === true);
     $('bleState').textContent = bridgeBusy ? 'Local helper: Connecting…' : !bridgeOnline ? 'Local helper: Offline' : bleConnected ? 'Mudra: Connected through OS' : 'Local helper: Online';
-    $('bleConnect').textContent = monitoring ? 'Stop monitoring' : 'Connect local helper';
-    $('bleConnect').disabled = bridgeBusy;
+    $('bleConnect').textContent = bridgeBusy ? 'Checking…' : bridgeOnline ? 'Live' : 'Retry now';
+    $('bleConnect').disabled = bridgeBusy || bridgeOnline;
     $('bleAir').textContent = 'Air Touch: ' + (airTouch === null ? 'unknown' : airTouch ? 'ON' : 'OFF');
     $('bleBattery').textContent = 'Battery: ' + (batteryLevel === null ? '—' : batteryLevel + '%');
-    $('bleDetail').textContent = lastError || (!bridgeOnline ? 'Start the Mac or Windows helper, then click Connect local helper.' : !bleConnected ? 'Waiting for OS-connected Mudra FFF0 GATT…' : airTouch === null ? 'Waiting for firmware system map…' : airTouch && !locked ? 'Air Touch ON — click Enter virtual' : airTouch ? 'Virtual active' : 'Air Touch OFF — normal HID active');
+    $('bleDetail').textContent = lastError || (!bridgeOnline ? 'Desktop companion not detected. Launch the app once, or use Test local service below.' : !bleConnected ? 'Companion online. Looking for the OS-connected Mudra FFF0 service.' : airTouch === null ? 'Companion connected; waiting for the firmware system map.' : airTouch && !locked ? 'Air Touch ON — click Enter virtual.' : airTouch ? 'Virtual active.' : 'Air Touch OFF — normal HID active.');
     $('statusText').textContent = locked ? 'Virtual (firmware Air Touch ON)' : bleConnected && airTouch ? 'Air Touch ON — click Enter virtual' : 'Normal HID cursor';
     $('dot').style.background = active ? '#39d69a' : '#e6a953';
     panel.classList.toggle('small', minimized);
@@ -412,9 +413,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
       }
       panelUpdate();
     } catch (error) {
-      if (monitoring && !dead) resetBridgeState('Local helper unavailable: ' +
-        String(error.message || error).slice(0,110) +
-        '. Start helper and allow Chrome Loopback network access.');
+      if (monitoring && !dead) resetBridgeState('Cannot reach the desktop companion at 127.0.0.1:8765. Allowing Chrome access does not start it. Launch the Mac/Windows app; use Test local service below. Browser error: ' +
+        String(error.message || error).slice(0,95));
     } finally {
       pollBusy = false;
       bridgeBusy = false;
@@ -434,7 +434,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
     bridgeBusy = true;
     lastError = '';
     panelUpdate();
-    // Initiated by explicit user click to allow browser loopback permission.
+    // Called when the user opens the bookmarklet, extension or website demo.
+    // Chrome may show a one-time loopback permission prompt for each origin.
     void pullStatus();
     pollTimer = setInterval(() => void pullStatus(), 750);
   }
@@ -474,7 +475,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
   $('center').addEventListener('click', recenter);
   $('mode').addEventListener('click', requestVirtual);
   $('bleConnect').addEventListener('click', () => {
-    if (monitoring) stopMonitoring(); else startMonitoring();
+    if (!monitoring) startMonitoring();
+    else if (!pollBusy) void pullStatus();
   });
   $('on').addEventListener('change', e => { active = e.target.checked; if (!active && locked) document.exitPointerLock(); panelUpdate(); render(); });
   root.querySelectorAll('[data-flag]').forEach(input => input.addEventListener('change', e => { cfg[e.target.dataset.flag] = e.target.checked; persist(); resetDwell(); render(); }));
@@ -499,5 +501,6 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
   }
   const ticker = setInterval(() => { if (!dead && active && cfg.dwell) render(); }, 45);
   window[KEY] = {stop, togglePanel, recenter, getState: () => ({cfg:Object.assign({},cfg),virtual,locked,active,monitoring,bridgeOnline,bleConnected,airTouch,batteryLevel,mapAt,lastError})};
-  panelUpdate(); scan(); note('Mudra Smart Cursor active');
+  panelUpdate(); scan(); startMonitoring();
+  note('Mudra Smart Cursor active. Checking local desktop companion automatically.');
 })();

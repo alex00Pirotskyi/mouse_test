@@ -1,4 +1,5 @@
 using System.Net;
+using System.Diagnostics;
 using MudraSmartCursorBridge;
 
 if (!OperatingSystem.IsWindows())
@@ -42,4 +43,24 @@ app.MapGet("/health", () => Results.Text("Mudra Smart Cursor Bridge is running")
 app.MapGet("/", () => Results.Text("Mudra Smart Cursor Bridge. Read-only API: /api/status"));
 Console.WriteLine("Mudra Bridge http://127.0.0.1:8765");
 Console.WriteLine("Reads paired Windows BLE devices only. Ctrl+C to exit.");
+// A normal double-click launches the local helper AND opens the web UI.
+// The browser can then automatically poll /api/status. No second connect step.
+if (!args.Contains("--no-browser", StringComparer.OrdinalIgnoreCase))
+{
+    app.Lifetime.ApplicationStarted.Register(() =>
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(
+                "https://alex00pirotskyi.github.io/mouse_test/")
+            {
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine("Open the Smart Cursor URL manually: " + ex.Message);
+        }
+    });
+}
 await app.RunAsync();

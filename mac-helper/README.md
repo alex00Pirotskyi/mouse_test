@@ -24,8 +24,8 @@ report `no-system-connected-fff0-device` and will **not scan**.
    the `x86_64` artifact for Intel Mac.
 2. Extract the GitHub artifact and the zip inside it.
 3. Keep Mudra normally paired / connected as HID in macOS Bluetooth settings.
-4. Open **Terminal**, drag the `MudraSmartCursorBridge.app` folder into it or
-   navigate to the extracted folder, then run:
+4. Double-click the `MudraSmartCursorBridge.app` bundle, or for diagnostic
+   output open **Terminal** in the extracted folder and run:
 
    ```bash
    ./MudraSmartCursorBridge.app/Contents/MacOS/MudraSmartCursorBridge
@@ -36,8 +36,8 @@ report `no-system-connected-fff0-device` and will **not scan**.
    trust the source. When asked, allow Bluetooth access.
 5. Check `http://127.0.0.1:8765/api/status` in Chrome. A successful status
    includes `connected:true`, `airTouch:true/false`, and optional battery.
-6. Open [Mudra Smart Cursor](https://alex00pirotskyi.github.io/mouse_test/)
-   and click **Test with local helper** → **Connect local helper**. Approve
+6. The companion opens [Mudra Smart Cursor](https://alex00pirotskyi.github.io/mouse_test/)
+   automatically. Click **Start Smart Cursor**. Approve
    Chrome's loopback access if prompted.
 
 To inspect system-connected FFF0 devices without BLE scanning:

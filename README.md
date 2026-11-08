@@ -26,7 +26,7 @@ See [Windows instructions](windows-helper/README.md) or
    in Terminal and allow Bluetooth when prompted. An unsigned app may require
    a manual Open Anyway approval in macOS Privacy & Security.
 3. Open the [Mudra Smart Cursor website](https://alex00pirotskyi.github.io/mouse_test/),
-   click **Test with local helper**, then **Connect local helper**.
+   click **Start Smart Cursor**. It checks local status automatically (no second connection click).
 4. Chrome may ask for permission to reach the local network / loopback address.
    The panel shows the OS connection, firmware Air Touch state, and optional battery level.
 5. When firmware Air Touch is ON, click **Enter virtual**; OFF or stale status
@@ -77,3 +77,7 @@ npm run build
 GitHub Actions builds a Windows executable, macOS arm64 + x86_64 app bundles,
 and the Pages website. CI compile/test success does **not** prove macOS will
 allow concurrent GATT access to a particular BLE HID device; test on Mudra hardware.
+
+### If the page says Helper Offline
+
+Chrome's **Allow** permission lets the website access the loopback address, but does not install or start a desktop application. On the same computer, open `http://127.0.0.1:8765/api/status` directly. If it does not show a JSON response, the helper is not running or cannot bind port 8765. Launch the native companion and look for its log/output. If the JSON displays `connected:false`, the companion *is running* and the remaining problem is Windows/macOS GATT access rather than the website. The page retries automatically; it will update when the helper starts.
