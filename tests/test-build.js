@@ -28,7 +28,7 @@ assert.ok(source.includes('getPrimaryService(0x180f)'), 'must read standard batt
 assert.ok(source.includes('checkShake(ev.movementX'), 'must detect shake with HID movement');
 assert.ok(source.includes('root.elementFromPoint'), 'virtual clicks must reach the Mudra control panel');
 assert.ok(source.includes('Firmware Air Touch OFF. Normal HID cursor.'));
-assert.ok(source.includes('bleCmd.startNotifications()'));
+assert.ok(source.includes('cmd.startNotifications()'));
 assert.ok(source.includes('clickAssist: false'));
 assert.ok(source.includes('dwell: false'));
 assert.equal(manifest.manifest_version,3);
