@@ -106,7 +106,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
     <div class="ble-line"><label for="hidProfile" style="font-size:11px">Firmware key signals</label><select id="hidProfile" style="max-width:170px;background:#173a4e;border:1px solid #3a7088;color:#e6fbff;border-radius:6px;padding:5px;font-size:11px"><option value="right">Right Ctrl / Right Alt</option><option value="any">Any Ctrl / Any Alt (test)</option><option value="function">F23 / F24</option><option value="off">Disabled</option></select></div>
     <div class="ble-line"><span id="bleAir">Air Touch (HID): unknown</span><span id="bleBattery">Battery: unavailable via HID</span></div>
     <div id="bleDetail" style="color:#afcbdc;font-size:11px;line-height:1.5;overflow-wrap:anywhere">Right Ctrl pulse for ON; Right Alt pulse for OFF. Focus this tab.</div>
-    <div class="ble-line"><a href="hid-test.html" target="_blank" rel="noopener" style="color:#8bddf5;font-size:10px">Test HID keys</a><button id="bleConnect" style="font-size:10px;padding:4px 7px">Optional BLE helper</button></div>
+    <div class="ble-line"><a href="https://alex00pirotskyi.github.io/mouse_test/hid-test.html" target="_blank" rel="noopener" style="color:#8bddf5;font-size:10px">Test HID keys</a><button id="bleConnect" style="font-size:10px;padding:4px 7px">Optional BLE helper</button></div>
   </div>
   <div class="actions"><button id="center">◎ Re-center</button><button id="mode" class="primary">Waiting for Air Touch</button></div>
   <div class="flags">
