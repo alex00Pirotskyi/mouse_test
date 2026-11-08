@@ -1,0 +1,33 @@
+name: Build Windows paired-device helper
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'windows-helper/**'
+      - '.github/workflows/windows-helper.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-helper:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Restore and compile Windows GATT companion
+        run: dotnet publish windows-helper/MudraSmartCursorBridge.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o windows-helper/dist
+      - name: Package executable and instructions
+        shell: pwsh
+        run: |
+          Copy-Item windows-helper/README.md windows-helper/dist/README.md
+          Compress-Archive -Path windows-helper/dist/* -DestinationPath MudraSmartCursorBridge-win-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MudraSmartCursorBridge-win-x64
+          path: MudraSmartCursorBridge-win-x64.zip
+          retention-days: 30
