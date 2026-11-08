@@ -99,9 +99,9 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
 <header><div><div class="brand">MUDRA <span style="color:#49cee8">CURSOR</span></div><div class="sub">Web precision assist</div></div><div style="display:flex;gap:4px"><button class="icon" id="min" title="Minimize" aria-label="Minimize panel">-</button><button class="icon" id="close" title="Close engine" aria-label="Close engine">×</button></div></header>
 <div id="controls">
   <div id="ble-card">
-    <div class="ble-line"><strong id="bleState">Windows helper: Offline</strong><button id="bleConnect">Connect local helper</button></div>
+    <div class="ble-line"><strong id="bleState">Local helper: Offline</strong><button id="bleConnect">Connect local helper</button></div>
     <div class="ble-line"><span id="bleAir">Air Touch: unknown</span><span id="bleBattery">Battery: —</span></div>
-    <div id="bleDetail" style="color:#8eafc4;font-size:10px">Uses Windows-paired Mudra. No Bluetooth scanning.</div>
+    <div id="bleDetail" style="color:#8eafc4;font-size:10px">Uses your OS-connected Mudra. No Bluetooth scanning.</div>
   </div>
   <div class="actions"><button id="center">◎ Re-center</button><button id="mode" class="primary">Waiting for Air Touch</button></div>
   <div class="flags">
@@ -116,7 +116,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
   <div class="rlabel"><label for="sensitivity">Virtual sensitivity</label><output id="sensitivityOut"></output></div><input type="range" id="sensitivity" min="0.4" max="2.4" step="0.1">
   <div class="rlabel"><label for="dwellMs">Dwell time</label><output id="dwellOut"></output></div><input type="range" id="dwellMs" min="600" max="2000" step="50">
   <div id="status"><span id="dot"></span><span id="statusText">Normal HID mode</span></div>
-  <div class="note">Run Windows helper and click Connect local helper. It reads only already paired Windows BLE devices. Air Touch OFF → native HID; ON → virtual available after clicking. Shake to re-center; Esc unlocks browser tabs. Assisted clicks and dwell are optional because they can activate website actions.</div>
+  <div class="note">Run the Mac or Windows helper, then click Connect local helper. No Bluetooth scanning or re-pairing. Air Touch OFF → native HID; ON → virtual available after clicking. Shake to re-center; Esc unlocks browser tabs. Assisted clicks and dwell are optional because they can activate website actions.</div>
 </div></div>`;
   document.documentElement.appendChild(host);
   const $ = id => root.getElementById(id);
@@ -142,12 +142,12 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
     $('dwellMs').value = cfg.dwellMs; $('dwellOut').textContent = cfg.dwellMs + ' ms';
     $('mode').textContent = locked ? 'Exit virtual' : airTouch === true && bleConnected ? 'Enter virtual' : 'Waiting for Air Touch';
     $('mode').disabled = !locked && !(bleConnected && airTouch === true);
-    $('bleState').textContent = bridgeBusy ? 'Windows helper: Connecting…' : !bridgeOnline ? 'Windows helper: Offline' : bleConnected ? 'Mudra: Connected through Windows' : 'Windows helper: Online';
+    $('bleState').textContent = bridgeBusy ? 'Local helper: Connecting…' : !bridgeOnline ? 'Local helper: Offline' : bleConnected ? 'Mudra: Connected through OS' : 'Local helper: Online';
     $('bleConnect').textContent = monitoring ? 'Stop monitoring' : 'Connect local helper';
     $('bleConnect').disabled = bridgeBusy;
     $('bleAir').textContent = 'Air Touch: ' + (airTouch === null ? 'unknown' : airTouch ? 'ON' : 'OFF');
     $('bleBattery').textContent = 'Battery: ' + (batteryLevel === null ? '—' : batteryLevel + '%');
-    $('bleDetail').textContent = lastError || (!bridgeOnline ? 'Start Windows helper, then click Connect local helper.' : !bleConnected ? 'Waiting for Windows-paired Mudra FFF0 GATT…' : airTouch === null ? 'Waiting for firmware system map…' : airTouch && !locked ? 'Air Touch ON — click Enter virtual' : airTouch ? 'Virtual active' : 'Air Touch OFF — normal HID active');
+    $('bleDetail').textContent = lastError || (!bridgeOnline ? 'Start the Mac or Windows helper, then click Connect local helper.' : !bleConnected ? 'Waiting for OS-connected Mudra FFF0 GATT…' : airTouch === null ? 'Waiting for firmware system map…' : airTouch && !locked ? 'Air Touch ON — click Enter virtual' : airTouch ? 'Virtual active' : 'Air Touch OFF — normal HID active');
     $('statusText').textContent = locked ? 'Virtual (firmware Air Touch ON)' : bleConnected && airTouch ? 'Air Touch ON — click Enter virtual' : 'Normal HID cursor';
     $('dot').style.background = active ? '#39d69a' : '#e6a953';
     panel.classList.toggle('small', minimized);
@@ -333,7 +333,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
   function requestVirtual() {
     if (locked) { document.exitPointerLock(); return; }
     if (!active) { note('Enable the engine first.'); return; }
-    if (!bleConnected || airTouch !== true) { note('Windows helper must report Mudra connected with Air Touch ON.'); return; }
+    if (!bleConnected || airTouch !== true) { note('Local helper must report Mudra connected with Air Touch ON.'); return; }
     if (!document.documentElement.requestPointerLock) { note('Pointer Lock is not supported here.'); return; }
     try {
       const result = document.documentElement.requestPointerLock();
@@ -357,7 +357,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
   function onLockError() { note('Pointer Lock unavailable on this page.'); }
 
 
-  // Local Windows companion polls the system-paired HID device for the
+  // Local macOS/Windows companion reads the system-connected HID device for the
   // existing Mudra FFF0/FFF1 map. Browser never discovers or pairs BLE devices.
   const BRIDGE_URL = 'http://127.0.0.1:8765/api/status';
   async function readLocalStatus() {
@@ -366,7 +366,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
       return new Promise((resolve,reject) => {
         chrome.runtime.sendMessage({type:'mudra-bridge-status'}, result => {
           if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
-          else if (!result || !result.ok) reject(new Error(result?.error || 'Windows helper unavailable'));
+          else if (!result || !result.ok) reject(new Error(result?.error || 'Local helper unavailable'));
           else resolve(result.status);
         });
       });
@@ -377,7 +377,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
       method:'GET', mode:'cors', cache:'no-store', targetAddressSpace:'loopback'
     });
     const response = await fetch(request);
-    if (!response.ok) throw new Error('Windows helper HTTP ' + response.status);
+    if (!response.ok) throw new Error('Local helper HTTP ' + response.status);
     return response.json();
   }
   function resetBridgeState(message) {
@@ -412,7 +412,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
       }
       panelUpdate();
     } catch (error) {
-      if (monitoring && !dead) resetBridgeState('Windows helper unavailable: ' +
+      if (monitoring && !dead) resetBridgeState('Local helper unavailable: ' +
         String(error.message || error).slice(0,110) +
         '. Start helper and allow Chrome Loopback network access.');
     } finally {

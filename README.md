@@ -1,66 +1,79 @@
-# Mudra Smart Cursor
+# Mudra Smart Cursor — Windows + macOS
 
-Web precision assistance for a **Mudra Band already paired with Windows as a BLE HID mouse**.
-Live firmware status now comes from a **read-only Windows companion**, not Web Bluetooth.
+Web precision assistance for the Mudra Band **already paired/connected to your OS as a BLE HID mouse**.
 
-## Get started
+**No browser Bluetooth scanning or pairing.** A tiny OS-native helper reads Mudra's
+existing firmware GATT status and serves a compatible local JSON API.
+The website, bookmarklet and Chrome extension all use this same API:
+`http://127.0.0.1:8765/api/status`.
 
-1. Keep Mudra normally paired and connected to Windows (HID).
-2. Download the ZIP artifact from [Build Windows paired-device helper](https://github.com/alex00Pirotskyi/mouse_test/actions/workflows/windows-helper.yml), extract and launch `MudraSmartCursorBridge.exe`.
-3. Open [Mudra Smart Cursor](https://alex00pirotskyi.github.io/mouse_test/), click **Test with Windows helper**, then **Connect local helper**.
-4. Approve **Loopback network** access in Chrome if asked. Watch the Mudra connectivity, Air Touch and battery indicators.
-5. With Air Touch ON, click **Enter virtual**. Firmware Air Touch OFF, disconnect, or stale map automatically exits virtual mode. Shake the virtual pointer to enlarge/re-center.
-6. Install the latest bookmarklet or Chrome extension for other websites. The extension is more reliable on sites with a restrictive Content Security Policy.
+## Download the helper for your OS
 
-## Windows paired-device discovery — no scans
+| OS | Build (download from GitHub Actions → Artifacts) | Device selection |
+| --- | --- | --- |
+| Windows 10/11 | [Windows companion (win-x64)](https://github.com/alex00Pirotskyi/mouse_test/actions/workflows/windows-helper.yml) | Windows-paired BLE devices only |
+| macOS Apple Silicon | [macOS companion (arm64)](https://github.com/alex00Pirotskyi/mouse_test/actions/workflows/macos-helper.yml) | Already **system-connected** FFF0 peripherals; no scanning |
+| macOS Intel | [macOS companion (x86_64)](https://github.com/alex00Pirotskyi/mouse_test/actions/workflows/macos-helper.yml) | Already **system-connected** FFF0 peripherals; no scanning |
 
-`windows-helper` uses `BluetoothLEDevice.GetDeviceSelectorFromPairingState(true)`
-and `DeviceInformation.FindAllAsync`, opening **only paired BLE devices**.
-It does NOT scan advertisements or enumerate unpaired peripherals.
-It queries the existing Mudra `FFF0 / FFF1` GATT characteristics without accessing protected HID service `1812`.
-The companion is a local-only HTTP server (`127.0.0.1:8765`), with just a read-only status endpoint.
+See [Windows instructions](windows-helper/README.md) or
+[macOS instructions](mac-helper/README.md) for platform-specific setup.
 
-- Firmware system-map GET: `75 00 00`.
-- Map response header `0x01`: IMU master at byte 2; Air Touch at `imuSpecific[10]` (byte 15).
-- Battery: standard BLE Battery Service `180F`, characteristic `2A19` if accessible.
-- No firmware feature writes, changes to pairing, installation of drivers, or remote telemetry.
-- No guarantees all Windows HID connections expose GATT to another process; the companion reports failures.
+## Quick start
 
-For detailed helper instructions, see [windows-helper/README.md](windows-helper/README.md).
-Test with `http://127.0.0.1:8765/api/status` while the helper runs.
+1. Keep Mudra connected to your computer as a normal HID mouse.
+2. Download/extract/start the native helper for your OS.
+   On macOS, run `MudraSmartCursorBridge.app/Contents/MacOS/MudraSmartCursorBridge`
+   in Terminal and allow Bluetooth when prompted. An unsigned app may require
+   a manual Open Anyway approval in macOS Privacy & Security.
+3. Open the [Mudra Smart Cursor website](https://alex00pirotskyi.github.io/mouse_test/),
+   click **Test with local helper**, then **Connect local helper**.
+4. Chrome may ask for permission to reach the local network / loopback address.
+   The panel shows the OS connection, firmware Air Touch state, and optional battery level.
+5. When firmware Air Touch is ON, click **Enter virtual**; OFF or stale status
+   returns to normal OS HID mode. Shake to enlarge and re-center the virtual cursor.
+
+The browser cannot enter Pointer Lock silently after a firmware notification.
+A user gesture is still required, and Chrome tab bar remains outside virtual mode.
+
+## Firmware contract
+
+- Custom service `FFF0` / notification + command characteristic `FFF1`.
+- Read-only system-map request `75 00 00`, about every 750 ms.
+- Reply header `01`; IMU master at byte 2; Air Touch `imuSpecific[10]` at byte 15.
+- Battery via standard service `180F/2A19` if the operating system permits access.
+- No enable/disable writes, no driver changes, no re-pairing, no internet telemetry.
+- Windows uses `GetDeviceSelectorFromPairingState(true)`.
+- macOS uses CoreBluetooth `retrieveConnectedPeripherals(withServices: [FFF0])`.
+  **macOS cannot enumerate all paired BLE peripherals via CoreBluetooth**;
+  the no-scan helper reports unavailable if it cannot see HID-connected Mudra.
 
 ## Browser controls
 
-- `Alt+Shift+C`: re-center virtual cursor
-- `Alt+Shift+P`: enter/exit virtual mode (entry requires user gesture)
-- `Alt+Shift+M`: collapse/expand panel
-- `Alt+Shift+D`: toggle optional dwell click
-- `Esc`: leave Pointer Lock to use browser tabs
-- Horizontal shake: enlarge and re-center virtual pointer
+- `Alt+Shift+C`: re-center virtual cursor.
+- `Alt+Shift+P`: enter/exit virtual mode (user activation required).
+- `Alt+Shift+M`: collapse/expand panel.
+- `Alt+Shift+D`: toggle optional dwell.
+- `Esc`: release Pointer Lock to access browser tabs.
+- Horizontal shake: enlarge and re-center the virtual pointer.
 
-Firmware Air Touch OFF automatically unlocks. Moving to the top edge no longer unlocks.
-Entering Pointer Lock on Air Touch ON still requires a user click due to browser security.
-The bookmarklet cannot move the OS cursor, and normal HID mouse motion is unchanged.
+The website never moves the OS cursor. Firmware Air Touch OFF releases virtual
+mode; moving to the top of the page no longer exits virtual mode.
 
-## Browser/local security
+## Security
 
-The first local helper request occurs only after you click Connect local helper.
-Chrome 156+ may prompt for **Loopback network** permission for requests from a public webpage.
-The helper binds only to localhost and exposes only connection state, Air Touch, and battery.
-Because bookmarklets may execute on many websites, CORS permits reads from different origins;
-a site granted loopback access could read this small status payload.
-No firmware control operations are exposed.
+The native helper binds only `127.0.0.1:8765` and exposes read-only status.
+The website connects locally after a click, and the Chrome extension has a
+narrow localhost host permission. Bookmarklets run in page origin, so sites
+granted loopback access may read the non-identifying status JSON.
+The native helper does not provide device identifiers or firmware write APIs.
 
-The page is hosted by GitHub Pages, with no backend. The Windows helper is installed only
-on your PC. The Chrome extension uses `activeTab`, `scripting`, and a narrow loopback
-host permission to fetch status. No broad site-scanning permission is required.
+## Build and verification
 
-## Build & test
-
-```
+```bash
 npm run check
 npm run build
-dotnet publish windows-helper/MudraSmartCursorBridge.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
 ```
 
-GitHub Actions builds the Windows EXE and deploys the static page separately.
+GitHub Actions builds a Windows executable, macOS arm64 + x86_64 app bundles,
+and the Pages website. CI compile/test success does **not** prove macOS will
+allow concurrent GATT access to a particular BLE HID device; test on Mudra hardware.

@@ -22,8 +22,8 @@ new vm.Script(source.replace('/*MUDRA_PRESETS*/null', JSON.stringify({radius:30}
 assert.ok(source.includes('requestPointerLock'));
 assert.ok(!source.includes('navigator.bluetooth'), 'browser must not scan BLE');
 assert.ok(!source.includes('requestDevice('), 'no browser Bluetooth discovery');
-assert.ok(!source.includes('getPrimaryService('), 'GATT must stay in Windows companion');
-assert.ok(source.includes('/api/status'), 'read Windows local helper status');
+assert.ok(!source.includes('getPrimaryService('), 'GATT must stay in native companion');
+assert.ok(source.includes('/api/status'), 'read native local helper status');
 assert.ok(source.includes("targetAddressSpace:'loopback'"), 'declare loopback address space');
 assert.ok(source.includes('startMonitoring()'), 'connection requires explicit user initiation');
 assert.ok(source.includes('Firmware Air Touch OFF — normal HID mouse.'), 'FW off restores HID');

@@ -149,7 +149,7 @@ private final class MudraMonitor: NSObject, CBCentralManagerDelegate, CBPeripher
         }
         let services = peripheral.services ?? []
         guard let firmware = services.first(where: { $0.uuid == MudraGATT.service }) else {
-            reset("fff0-not-exposed", "Windows-style FFF0 GATT service is not exposed on this macOS link.")
+            reset("fff0-not-exposed", "Mudra FFF0 GATT service is not exposed on this macOS link.")
             return
         }
         peripheral.discoverCharacteristics([MudraGATT.command], for: firmware)
@@ -413,7 +413,7 @@ if arguments.contains("--self-test") {
     exit(0)
 }
 let name = arguments.first(where: { $0.hasPrefix("--name=") }).map { String($0.dropFirst(7)) }
-let monitor = MudraMonitor(preferredName: name, listMode: arguments.contains("--list"))
+private let monitor = MudraMonitor(preferredName: name, listMode: arguments.contains("--list"))
 if !arguments.contains("--list") {
     do {
         let server = try StatusServer(monitor: monitor)
