@@ -292,8 +292,13 @@ async function checkAuthorized(auto) {
     badge('bluetooth',supported ? 'API available' : 'Adapter unavailable',supported?'pass':'fail');
     if (!supported) log('WARN','Browser says Bluetooth unavailable or disabled.');
     if (typeof bluetooth.getDevices !== 'function') {
-      badge('authorized','getDevices unavailable','warn');
-      help('Web Bluetooth exists but this browser does not expose the previous-authorizations API.');
+      // Chrome stable does not normally ship getDevices(); unlike
+      // requestDevice(), it is still behind an experimental flag.
+      // This is NOT a blocker for the real BLE/GATT test below.
+      badge('authorized','Optional API unavailable','warn');
+      $('reconnect').disabled = true;
+      help('Normal on stable Chrome: getDevices() is experimental. Skip this check and click Step 2 → Authorize this Mudra in Chrome. Keep your OS HID connection.');
+      log('INFO','getDevices() is unavailable on this browser; standard requestDevice() may still connect to a HID-paired Mudra. Continue with Step 2.');
       return;
     }
     authorized = await bluetooth.getDevices();
