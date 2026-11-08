@@ -46,15 +46,15 @@
   <main>
     <div class="hero">
       <div><span class="badge">● Designed for BLE HID air mice</span><h1>Your air mouse.<br><em>More precise.</em></h1>
-        <p class="lead">Magnetic targets, sticky selection, forgiving clicks, dwell activation, and a re-centerable virtual cursor. Built to make web browsing easier with your Mudra Band.</p>
-        <div class="actions"><a id="bookmarkletHero" class="btn primary" draggable="true" href="#install">✦ Drag to bookmarks bar</a><a class="btn" href="#install">How to install ↘</a></div>
+        <p class="lead">Magnetic targeting, sticky hover, shake-to-recenter and a firmware-linked virtual cursor. Connect your Mudra Band to read its Air Touch state and battery—no firmware changes.</p>
+        <div class="actions"><a id="bookmarkletHero" class="btn primary" draggable="true" href="#install">✦ Drag to bookmarks bar</a><button class="btn" type="button" id="launchNow">Test and connect Mudra here</button><a class="btn" href="#install">How to install ↘</a></div>
         <p class="caption">Standalone bookmarklet · No account, no tracking · No server required</p></div>
       <div class="visual" aria-hidden="true"><div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="address">your favorite website</span></div>
         <div class="fake-row"><div><div class="fake-line"></div><div class="fake-line s"></div></div><button>Continue</button></div><div class="fake-line" style="width:60%"></div><div class="fake-line" style="width:42%"></div>
         <div class="cursor"><svg viewBox="0 0 32 42"><path d="M2 2L2 35L12 26L20 40L27 36L19 23L29 21Z" fill="white" stroke="#19506f" stroke-width="2"/></svg></div>
         <div class="floater">◎ Magnetic target acquired</div></div>
     </div>
-    <section id="features"><div class="eyebrow">Precision layer</div><h2>All the control features</h2><p class="section-sub">Works with ordinary HID mouse events. No special device permissions or firmware modifications are needed for browser-assisted mode.</p>
+    <section id="features"><div class="eyebrow">Precision layer</div><h2>All the control features</h2><p class="section-sub">Normal cursor assistance uses HID input; firmware-linked virtual mode uses a user-authorized Web Bluetooth GATT connection (FFF0). No firmware modifications are required.</p>
       <div class="grid">
         <article class="card"><span class="num">01 / MAGNET</span><h3>Magnetic targeting</h3><p>Detects nearby links and controls and highlights the best candidate with a generous target radius.</p></article>
         <article class="card"><span class="num">02 / STICKY</span><h3>Sticky selection</h3><p>Hysteresis retains a selected element through small hand tremors without rapidly switching targets.</p></article>
@@ -64,11 +64,11 @@
         <article class="card"><span class="num">06 / CENTER</span><h3>Shake-to-recenter</h3><p>Re-center the virtual cursor with one action. Pointer Lock gives continuous relative motion at screen edges.</p></article>
       </div>
     </section>
-    <section id="install"><div class="eyebrow">Installation</div><h2>One-click on any supported site</h2><p class="section-sub">Drag the bookmarklet into Chrome's bookmarks bar once, then launch it on a normal webpage.</p>
+    <section id="install"><div class="eyebrow">Installation</div><h2>Bookmarklet + firmware status</h2><p class="section-sub">Click “Test and connect Mudra here” above, or drag the bookmarklet to your bookmarks bar. Connect Bluetooth inside the floating panel to read Air Touch and battery. Firmware Air Touch OFF = normal HID; ON = virtual available after user activation.</p>
       <div class="install">
         <div class="box"><h3>1. Bookmarklet</h3><p class="small">Show the bookmarks bar (<code>Ctrl+Shift+B</code> on Windows). Drag the button below onto it. It contains the full script, so it doesn't fetch code from an external server.</p>
           <div class="actions"><a class="btn primary" id="bookmarklet" draggable="true" href="#install">✦ Mudra Smart Cursor</a><button class="btn" type="button" id="copy">Copy bookmarklet</button></div>
-          <ol class="steps"><li>Visit an ordinary HTTPS website.</li><li>Click the saved bookmark.</li><li>Use the floating panel to configure your mouse.</li><li>Click the bookmark again to collapse or expand the panel.</li></ol>
+          <ol class="steps"><li>Visit an HTTPS website or use the “Test here” button above.</li><li>Click the bookmark to launch the floating Mudra panel.</li><li>Click Connect Mudra, then choose your band in Chrome's BLE device picker.</li><li>When Air Touch is ON, click Enter virtual. Turn Air Touch OFF to return to the native HID cursor.</li></ol>
           <div class="help">Some sites prohibit bookmarklets through Content Security Policy. Use the included Chrome extension instead if the bookmark doesn't run.</div>
           <div class="status" id="copyStatus" role="status"></div>
         </div>
@@ -84,7 +84,7 @@
     <section><div class="eyebrow">Try the idea</div><h2>Interactive targeting demo</h2><p class="section-sub">Move your ordinary mouse near any demo button. The page will highlight whichever control is within your current magnetic radius. This demo never triggers actions.</p>
       <div class="demo"><div class="demoarea" id="demo"><button type="button">Search</button><button type="button">Settings</button><button type="button">Continue</button></div><div class="demo-status" id="demoStatus">Move near a button to acquire a target.</div></div>
     </section>
-    <section><div class="eyebrow">Compatibility</div><h2>Things browsers won't let us override</h2><p class="section-sub">A bookmarklet cannot reposition or slow the operating-system cursor. Virtual mode uses Pointer Lock and synthetic clicks, so some sites, embedded frames, protected controls, and drag-and-drop interactions may not work. Sticky selection is a visual targeting aid; it doesn't force native CSS <code>:hover</code> to stay active. Navigation/reloads end the bookmarklet session. Firmware-level orientation re-zeroing requires separate work on the Mudra Band itself.</p></section>
+    <section><div class="eyebrow">Compatibility</div><h2>Things browsers won't let us override</h2><p class="section-sub">A bookmarklet cannot reposition or slow the operating-system cursor, and Web Bluetooth permissions are origin-scoped. Virtual mode uses Pointer Lock and synthetic clicks, so some sites, embedded frames, protected controls, and drag-and-drop interactions may not work. Sticky selection is a visual targeting aid; it doesn't force native CSS <code>:hover</code> to stay active. Navigation/reloads end the bookmarklet session. Firmware-level orientation re-zeroing requires separate work on the Mudra Band itself.</p></section>
   </main>
   <footer class="foot"><span>Mudra Smart Cursor · Open source browser-side prototype</span><span>100% local execution · No telemetry · No device identification</span></footer>
 </div>
@@ -114,6 +114,17 @@ for(const [id,key] of [['radius','radius'],['sensitivity','sensitivity'],['dwell
     document.querySelectorAll('[data-preset]').forEach(b=>b.classList.remove('selected'));sync();
   });
 }
+document.getElementById('launchNow').addEventListener('click', () => {
+  // Same trusted self-contained script that powers the bookmarklet. Avoid
+  // eval/Function; GitHub Pages is a regular HTTPS document.
+  const script = document.createElement('script');
+  script.textContent = ENGINE_SOURCE.replace('/*MUDRA_PRESETS*/null', JSON.stringify(state));
+  document.documentElement.appendChild(script);
+  script.remove();
+  if (!window.__MUDRA_SMART_CURSOR_V1__) {
+    document.getElementById('copyStatus').textContent = 'Browser blocked on-page injection. Install the bookmarklet instead.';
+  }
+});
 document.getElementById('copy').addEventListener('click',async()=>{
   const value=document.getElementById('bookmarklet').href;const out=document.getElementById('copyStatus');
   try{await navigator.clipboard.writeText(value);out.textContent='Bookmarklet copied. Create a bookmark, then paste this into its URL field.';}

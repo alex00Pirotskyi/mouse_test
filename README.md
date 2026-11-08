@@ -75,7 +75,7 @@ This project stores no user movement logs, makes no requests to analytics, and n
 ## Firmware-linked Air Touch (v1.1)
 
 This browser prototype uses the **existing Mudra firmware protocol** without
-changing firmware settings. Click **Connect Mudra** in the injected panel.
+changing firmware settings. Click **Test and connect Mudra here** on the GitHub Pages homepage, or launch the bookmarklet and then click **Connect Mudra** in the injected panel.
 Chrome asks which Bluetooth device to authorize. On Windows the device may
 already be paired as a HID mouse; GATT access can still be unavailable on some
 Bluetooth stacks.
