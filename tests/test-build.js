@@ -12,9 +12,12 @@ assert.equal(source,extension);
 assert.ok(generated.includes('const ENGINE_SOURCE = '));
 assert.ok(generated.includes('/*MUDRA_PRESETS*/null'));
 assert.ok(generated.includes('rebuild()'));
-const inlineScript = generated.match(/<script>([\\s\\S]*?)<\\/script>/);
-assert.ok(inlineScript, 'HTML must contain installation script');
-new vm.Script(inlineScript[1], {filename:'landing-inline.js'});
+const start = generated.indexOf('<script>');
+const end = generated.indexOf('</script>', start + 8);
+assert.ok(start >= 0 && end > start, 'HTML must contain an inline installation script');
+const inlineScript = generated.slice(start + 8, end);
+
+new vm.Script(inlineScript, {filename:'landing-inline.js'});
 new vm.Script(source.replace('/*MUDRA_PRESETS*/null', JSON.stringify({radius:30})), {filename:'bookmarklet.js'});
 assert.ok(source.includes('requestPointerLock'));
 assert.ok(source.includes('clickAssist: false'));
