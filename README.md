@@ -1,3 +1,29 @@
+# No-install keyboard HID mode (recommended)
+
+Mudra Smart Cursor now recognizes firmware-generated **keyboard HID events** on the same BLE HID link as the mouse. No Web Bluetooth chooser, desktop companion, second BLE connection or OS re-pairing is required.
+
+| Firmware event | Keyboard HID usage | Browser |
+|---|---|---|
+| Air Touch ON | **Right Ctrl**, usage `0xE4`, modifier byte `0x10` | Request virtual Pointer Lock |
+| Air Touch OFF | **Right Alt**, usage `0xE6`, modifier byte `0x40` | Exit virtual and restore normal HID mouse |
+
+Always send a short **key down** followed by an **all-zero key release** for each event. Holding modifiers between state transitions would disrupt normal keyboard shortcuts.
+
+- The default panel profile is **Right Ctrl / Right Alt** to avoid ordinary left-side shortcuts.
+- **Any Ctrl / Any Alt (test)** is available only for early firmware limited to left modifiers. It also responds to the user's normal keyboard, so avoid this as a product default.
+- **F23 / F24** is available as a less collision-prone alternative.
+- A browser **cannot identify which physical HID keyboard generated a trusted keydown**.
+- Pointer Lock still requires a focused tab and browser user activation. A trusted keydown often qualifies; check on your target browser/platform before assuming automatic entry.
+- Battery percentage and firmware GATT system-map contents cannot be read from these HID modifier signals, so their display is explicitly unavailable in HID-only mode.
+
+[Open keyboard-HID and Pointer Lock tester](https://alex00pirotskyi.github.io/mouse_test/hid-test.html)
+
+[Launch browser Smart Cursor](https://alex00pirotskyi.github.io/mouse_test/)
+
+Native Mac/Windows BLE companions remain available as **optional diagnostic tools** in the repository; the browser no longer polls them on startup.
+
+---
+
 ## No-install Flutter Web feasibility test (first)
 
 [**Open Mudra browser-only BLE probe**](https://alex00pirotskyi.github.io/mouse_test/ble-probe.html)

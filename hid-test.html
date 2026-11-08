@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mudra HID Ctrl / Alt test</title>
+<style>
+:root{color-scheme:dark;font:15px/1.6 system-ui,-apple-system,Segoe UI,sans-serif;background:#0b1322;color:#e9f7ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(800px 400px at 80% -5%,#18394a,transparent),#0b1322}
+main{max-width:760px;margin:0 auto;padding:30px 20px 70px}a{color:#78e1ef}h1{font-size:clamp(30px,5vw,48px);letter-spacing:-.04em}
+p{color:#a7bece}.card{margin:20px 0;background:#13263a;padding:18px;border:1px solid #31536a;border-radius:16px}
+button,select{padding:11px 14px;border:1px solid #5794a7;border-radius:9px;background:#1c4357;color:#eafbff;cursor:pointer;font:inherit;margin-right:8px;margin-bottom:8px}
+button.pri{color:#061721;background:#6ce0f0}pre{font:12px/1.6 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-word;max-height:390px;overflow:auto;min-height:110px;background:#081929;padding:14px;border-radius:10px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.metric{padding:12px;background:#0b1a2c;border-radius:8px;color:#9fc9dc}.metric b{display:block;color:#f0fcff}
+@media(max-width:540px){.grid{grid-template-columns:1fr}}
+</style></head><body><main>
+<a href="./">← Mudra Smart Cursor</a>
+<h1>Firmware HID keyboard test</h1>
+<p>No installation, no Bluetooth GATT and no re-pairing. Keep Mudra connected as a normal HID mouse. We only observe trusted keyboard events from the currently focused tab.</p>
+<div class="card">
+<strong>1 · Arm the test</strong><p>This page reacts to firmware reports only after you enable testing. Start with Right Ctrl / Right Alt. Physical keyboard keys generate the same events.</p>
+<select id="profile" aria-label="Test key profile"><option value="right">Right Ctrl ON / Right Alt OFF</option><option value="any">Any Ctrl ON / Any Alt OFF (test)</option><option value="function">F23 ON / F24 OFF</option></select>
+<button class="pri" id="arm">Arm test</button><button id="disarm" disabled>Disarm</button>
+</div>
+<div class="card"><strong>2 · Send firmware HID key pulse</strong><p>Send Right Ctrl key-down and key-up (modifier 0x10), then Right Alt key-down and key-up (0x40). Pressing physical right Ctrl/Alt is also a useful browser-only preview. Pointer Lock might be denied until the page receives a valid activation gesture.</p>
+<div class="grid">
+<div class="metric">Listener<b id="armed">Not armed</b></div>
+<div class="metric">Last key code<b id="key">None</b></div>
+<div class="metric">HID virtual state<b id="state">Unknown</b></div>
+<div class="metric">Transient user activation<b id="activation">Unknown</b></div>
+<div class="metric">Pointer Lock<b id="locked">Unlocked</b></div>
+<div class="metric">Last result<b id="result">None</b></div>
+</div></div>
+<div class="card"><strong>3 · Diagnostic events</strong><p>Copy the log if Pointer Lock fails; it includes event code, side, trusted state, user activation and browser errors, but no device identifiers.</p>
+<button id="copy">Copy report</button><button id="reset">Clear log</button>
+<pre id="log"></pre></div>
+<script>
+(() => {
+ 'use strict';
+ const $ = id => document.getElementById(id);
+ let armed=false, data=[];
+ function log(t) {data.push(new Date().toISOString().slice(11,23)+' '+t); if(data.length>120)data.shift(); $('log').textContent=data.join('\n');$('log').scrollTop=$('log').scrollHeight;}
+ function signal(ev) {
+   if(ev.repeat || !ev.isTrusted || ev.isComposing) return null;
+   const mode=$('profile').value;
+   if(mode==='function') return ev.code==='F23'?'on':ev.code==='F24'?'off':null;
+   if(mode==='right')return ev.code==='ControlRight'?'on':ev.code==='AltRight'?'off':null;
+   if(mode==='any')return ev.key==='Control'?'on':(ev.key==='Alt'||ev.key==='AltGraph')?'off':null;
+   return null;
+ }
+ document.addEventListener('keydown', ev => {
+   if(!armed)return;
+   const action=signal(ev);
+   const activation=navigator.userActivation ? navigator.userActivation.isActive : 'unknown';
+   $('key').textContent=ev.code+' ('+ev.key+')';
+   $('activation').textContent=String(activation);
+   if(!action)return;
+   ev.preventDefault();ev.stopImmediatePropagation();
+   $('state').textContent=action==='on'?'ON':'OFF';
+   log('KEY '+ev.code+' / '+ev.key+' / location='+ev.location+' / trusted='+ev.isTrusted+' / active='+activation+' / action='+action);
+   if(action==='off') {if(document.pointerLockElement)document.exitPointerLock();$('result').textContent='OFF key processed';return;}
+   if(!document.documentElement.requestPointerLock){$('result').textContent='Pointer Lock unsupported';return;}
+   try {
+     const result=document.documentElement.requestPointerLock();
+     $('result').textContent='Requesting Pointer Lock…';
+     if(result&&result.catch)result.catch(e=>{log('DENIED '+e.name+': '+e.message);$('result').textContent='Denied: '+e.name;});
+   }catch(e){log('ERROR '+e.name+': '+e.message);$('result').textContent='Exception: '+e.name;}
+ },true);
+ document.addEventListener('pointerlockchange',()=> {
+   const locked=!!document.pointerLockElement;
+   $('locked').textContent=locked?'LOCKED':'Unlocked';
+   log('POINTER LOCK '+(locked?'ON':'OFF'));
+   if(locked)$('result').textContent='Success — trusted keyboard event activated pointer lock';
+ });
+ document.addEventListener('pointerlockerror',()=>{log('ERROR Pointer Lock denied');$('result').textContent='Pointer Lock denied';});
+ $('arm').addEventListener('click',()=>{armed=true;$('armed').textContent='Armed — listening';$('arm').disabled=true;$('disarm').disabled=false;log('Test armed, profile='+$('profile').value);});
+ $('disarm').addEventListener('click',()=>{armed=false;$('armed').textContent='Not armed';$('arm').disabled=false;$('disarm').disabled=true;if(document.pointerLockElement)document.exitPointerLock();});
+ $('reset').addEventListener('click',()=>{data=[];$('log').textContent='';});
+ $('copy').addEventListener('click',()=>{const report=['Mudra firmware HID keyboard test','Browser: '+navigator.userAgent,'Profile: '+$('profile').value,...data].join('\n');navigator.clipboard.writeText(report).then(()=>$('result').textContent='Report copied').catch(e=>$('result').textContent='Copy failed: '+e.message);});
+ log('Ready. No device scan or local companion is used.');
+})();
+</script></main></body></html>

@@ -28,7 +28,16 @@ assert.ok(source.includes("targetAddressSpace:'loopback'"), 'remote pages declar
 assert.ok(source.includes("new Request('/api/status'"), 'local companion page uses same-origin API');
 assert.ok(generated.includes('queueMicrotask(activateSmartCursorOnThisPage)'), 'native local page starts cursor automatically');
 assert.ok(source.includes('startMonitoring()'), 'automatic local helper monitoring must be available');
-assert.ok(source.includes("scan(); startMonitoring();"), 'opening cursor starts local helper check');
+assert.ok(source.includes("panelUpdate(); scan();"), 'engine starts without helper polling');
+assert.ok(!source.includes("scan(); startMonitoring();"), 'desktop helper not required');
+assert.ok(source.includes("hidProfile: 'right'"), 'right modifier profile default');
+assert.ok(source.includes("ev.code === 'ControlRight'"), 'Ctrl HID ON supported');
+assert.ok(source.includes("ev.code === 'AltRight'"), 'Alt HID OFF supported');
+assert.ok(source.includes("ev.isTrusted"), 'reject untrusted synthetic keys');
+assert.ok(source.includes("hidAirTouch = signal === 'on'"), 'HID state signal implemented');
+assert.ok(source.includes("signal === 'on' && !locked"), 'enter virtual directly in trusted keydown');
+assert.ok(source.includes("signal === 'off' && locked"), 'exit virtual directly');
+assert.ok(source.includes("cfg.hidProfile === 'function'"), 'F23/F24 optional profile');
 assert.ok(!source.includes('Stop monitoring'), 'no misleading stop button while companion offline');
 assert.ok(source.includes('Firmware Air Touch OFF — normal HID mouse.'), 'FW off restores HID');
 assert.ok(source.includes('root.elementFromPoint'), 'virtual panel controls reachable');
