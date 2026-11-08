@@ -10,7 +10,7 @@
     radius: 30, releaseRadius: 48, clickRadius: 15, sensitivity: 1,
     fineScale: 0.42, smoothing: 0.78, dwellMs: 950,
     sticky: true, magnetic: true, precision: true, clickAssist: false,
-    dwell: false, virtual: false
+    dwell: false, virtual: false, hidProfile: 'right'
   }, /*MUDRA_PRESETS*/null || {});
   const STORE_KEY = 'mudra.smartcursor.preferences.v1';
   let saved = {};
@@ -52,6 +52,9 @@
   let shakeTrail = [];
   let shakeLast = 0;
   let shakeTimer = 0;
+  let hidAirTouch = null;
+  let lastHidEvent = '';
+  let lastActivation = 'unknown';
 
   const host = document.createElement('div');
   host.id = 'mudra-smart-cursor-root';
@@ -99,10 +102,11 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
 <header><div><div class="brand">MUDRA <span style="color:#49cee8">CURSOR</span></div><div class="sub">Web precision assist</div></div><div style="display:flex;gap:4px"><button class="icon" id="min" title="Minimize" aria-label="Minimize panel">-</button><button class="icon" id="close" title="Close engine" aria-label="Close engine">×</button></div></header>
 <div id="controls">
   <div id="ble-card">
-    <div class="ble-line"><strong id="bleState">Checking local helper…</strong><button id="bleConnect">Retry now</button></div>
-    <div class="ble-line"><span id="bleAir">Air Touch: unknown</span><span id="bleBattery">Battery: —</span></div>
-    <div id="bleDetail" style="color:#afcbdc;font-size:11px;line-height:1.5;overflow-wrap:anywhere">Checking whether the desktop companion is running…</div>
-    <div class="ble-line"><a href="http://127.0.0.1:8765/api/status" target="_blank" rel="noopener" style="color:#8bddf5;font-size:10px">Test local service</a><a href="https://github.com/alex00Pirotskyi/mouse_test#download-the-helper-for-your-os" target="_blank" rel="noopener" style="color:#8bddf5;font-size:10px">Get companion</a></div>
+    <div class="ble-line"><strong id="bleState">HID keyboard: Ready</strong><span style="color:#6fe7c7;font-size:10px">NO APP NEEDED</span></div>
+    <div class="ble-line"><label for="hidProfile" style="font-size:11px">Firmware key signals</label><select id="hidProfile" style="max-width:170px;background:#173a4e;border:1px solid #3a7088;color:#e6fbff;border-radius:6px;padding:5px;font-size:11px"><option value="right">Right Ctrl / Right Alt</option><option value="any">Any Ctrl / Any Alt (test)</option><option value="function">F23 / F24</option><option value="off">Disabled</option></select></div>
+    <div class="ble-line"><span id="bleAir">Air Touch (HID): unknown</span><span id="bleBattery">Battery: unavailable via HID</span></div>
+    <div id="bleDetail" style="color:#afcbdc;font-size:11px;line-height:1.5;overflow-wrap:anywhere">Right Ctrl pulse for ON; Right Alt pulse for OFF. Focus this tab.</div>
+    <div class="ble-line"><a href="hid-test.html" target="_blank" rel="noopener" style="color:#8bddf5;font-size:10px">Test HID keys</a><button id="bleConnect" style="font-size:10px;padding:4px 7px">Optional BLE helper</button></div>
   </div>
   <div class="actions"><button id="center">◎ Re-center</button><button id="mode" class="primary">Waiting for Air Touch</button></div>
   <div class="flags">
@@ -117,7 +121,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
   <div class="rlabel"><label for="sensitivity">Virtual sensitivity</label><output id="sensitivityOut"></output></div><input type="range" id="sensitivity" min="0.4" max="2.4" step="0.1">
   <div class="rlabel"><label for="dwellMs">Dwell time</label><output id="dwellOut"></output></div><input type="range" id="dwellMs" min="600" max="2000" step="50">
   <div id="status"><span id="dot"></span><span id="statusText">Normal HID mode</span></div>
-  <div class="note">The cursor checks your local desktop companion automatically. No browser Bluetooth pairing. Air Touch OFF → native HID; ON → virtual available after clicking. Shake to re-center; Esc unlocks browser tabs.</div>
+  <div class="note">No download: firmware HID keyboard pulses control virtual mode. Right Ctrl → ON; Right Alt → normal mouse. Release each modifier after pressing it. Ordinary physical keyboards generate identical events. Shake to re-center; Esc unlocks tabs.</div>
 </div></div>`;
   document.documentElement.appendChild(host);
   const $ = id => root.getElementById(id);
@@ -135,21 +139,33 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
     $('toast').textContent = s; $('toast').style.display = 'block';
     clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').style.display = 'none'; }, 3000);
   }
+  function effectiveAirTouch() {
+    if (cfg.hidProfile !== 'off' && hidAirTouch !== null) return hidAirTouch;
+    return bleConnected ? airTouch : null;
+  }
   function panelUpdate() {
+    const effectiveAir = effectiveAirTouch();
+    $('hidProfile').value = cfg.hidProfile;
     root.querySelectorAll('[data-flag]').forEach(c => { c.checked = !!cfg[c.dataset.flag]; });
     $('on').checked = active;
     $('radius').value = cfg.radius; $('radiusOut').textContent = cfg.radius + ' px';
     $('sensitivity').value = cfg.sensitivity; $('sensitivityOut').textContent = Number(cfg.sensitivity).toFixed(1) + '×';
     $('dwellMs').value = cfg.dwellMs; $('dwellOut').textContent = cfg.dwellMs + ' ms';
-    $('mode').textContent = locked ? 'Exit virtual' : airTouch === true && bleConnected ? 'Enter virtual' : 'Waiting for Air Touch';
-    $('mode').disabled = !locked && !(bleConnected && airTouch === true);
-    $('bleState').textContent = bridgeBusy ? 'Local helper: Connecting…' : !bridgeOnline ? 'Local helper: Offline' : bleConnected ? 'Mudra: Connected through OS' : 'Local helper: Online';
-    $('bleConnect').textContent = bridgeBusy ? 'Checking…' : bridgeOnline ? 'Live' : 'Retry now';
+    $('mode').textContent = locked ? 'Exit virtual' : effectiveAir === true ? 'Enter virtual' : 'Waiting for ON key';
+    $('mode').disabled = !locked && effectiveAir !== true;
+    $('bleState').textContent = cfg.hidProfile === 'off' ? 'HID keyboard: Off' : 'HID keyboard: Listening';
+    $('bleConnect').textContent = bridgeBusy ? 'Checking…' : bridgeOnline ? 'Helper: Live' : 'Optional BLE helper';
     $('bleConnect').disabled = bridgeBusy || bridgeOnline;
-    $('bleAir').textContent = 'Air Touch: ' + (airTouch === null ? 'unknown' : airTouch ? 'ON' : 'OFF');
-    $('bleBattery').textContent = 'Battery: ' + (batteryLevel === null ? '—' : batteryLevel + '%');
-    $('bleDetail').textContent = lastError || (!bridgeOnline ? 'Desktop companion not detected. Launch the app once, or use Test local service below.' : !bleConnected ? 'Companion online. Looking for the OS-connected Mudra FFF0 service.' : airTouch === null ? 'Companion connected; waiting for the firmware system map.' : airTouch && !locked ? 'Air Touch ON — click Enter virtual.' : airTouch ? 'Virtual active.' : 'Air Touch OFF — normal HID active.');
-    $('statusText').textContent = locked ? 'Virtual (firmware Air Touch ON)' : bleConnected && airTouch ? 'Air Touch ON — click Enter virtual' : 'Normal HID cursor';
+    $('bleAir').textContent = 'Air Touch: ' + (effectiveAir === null ? 'unknown' : effectiveAir ? 'ON' : 'OFF');
+    $('bleBattery').textContent = 'Battery: ' + (batteryLevel === null ? 'requires GATT' : batteryLevel + '%');
+    $('bleDetail').textContent = cfg.hidProfile === 'off'
+      ? (lastError || 'Keyboard HID control disabled. Optional native GATT helper remains available.')
+      : lastHidEvent
+        ? ('Last signal: ' + lastHidEvent + '. User activation: ' + lastActivation + '.')
+        : (cfg.hidProfile === 'right' ? 'Ready for Right Ctrl (ON) / Right Alt (OFF). ' :
+           cfg.hidProfile === 'any' ? 'TEST: Any Ctrl/Alt key, including physical keyboard, will toggle the cursor. ' :
+           'Ready for F23 (ON) / F24 (OFF). ') + 'No app download.';
+    $('statusText').textContent = locked ? 'Virtual cursor: ON' : effectiveAir === true ? 'HID ON signal received' : 'Normal HID cursor';
     $('dot').style.background = active ? '#39d69a' : '#e6a953';
     panel.classList.toggle('small', minimized);
     $('min').textContent = minimized ? '+' : '-';
@@ -334,7 +350,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
   function requestVirtual() {
     if (locked) { document.exitPointerLock(); return; }
     if (!active) { note('Enable the engine first.'); return; }
-    if (!bleConnected || airTouch !== true) { note('Local helper must report Mudra connected with Air Touch ON.'); return; }
+    if (effectiveAirTouch() !== true) { note('Send firmware HID ON key first.'); return; }
     if (!document.documentElement.requestPointerLock) { note('Pointer Lock is not supported here.'); return; }
     try {
       const result = document.documentElement.requestPointerLock();
@@ -347,11 +363,11 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
     shakeTrail.length = 0;
     if (locked) {
       pos.x = raw.x = innerWidth / 2; pos.y = raw.y = innerHeight / 2;
-      if (airTouch !== true || !bleConnected) {
+      if (effectiveAirTouch() !== true) {
         document.exitPointerLock();
         return;
       }
-      note('Virtual active. Shake to re-center; disable Air Touch to exit.');
+      note('Virtual active. Shake to recenter, or send firmware HID OFF key.');
     } else resetDwell();
     panelUpdate(); render();
   }
@@ -394,7 +410,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
     batteryLevel = null;
     mapAt = null;
     lastError = message || '';
-    if (locked && document.exitPointerLock) document.exitPointerLock();
+    if (locked && effectiveAirTouch() !== true && document.exitPointerLock) document.exitPointerLock();
     panelUpdate();
   }
   async function pullStatus() {
@@ -412,7 +428,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
         status.batteryLevel >= 0 && status.batteryLevel <= 100 ? status.batteryLevel : null;
       mapAt = typeof status.lastMapUtc === 'string' ? status.lastMapUtc : null;
       lastError = status.error || (status.state === 'ready' ? '' : status.state === 'waiting-for-system-map' ? '' : status.state || '');
-      if (airTouch !== true && locked && document.exitPointerLock) document.exitPointerLock();
+      if (effectiveAirTouch() !== true && locked && document.exitPointerLock) document.exitPointerLock();
       if (previous !== airTouch && airTouch !== null) {
         resetDwell();
         note(airTouch ? 'Firmware Air Touch ON — click Enter virtual.' : 'Firmware Air Touch OFF — normal HID mouse.');
@@ -448,8 +464,47 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
     pollTimer = setInterval(() => void pullStatus(), 750);
   }
 
+  // Browser cannot distinguish an OS keyboard from a firmware keyboard HID
+  // report; restrict to right modifiers by default to avoid common shortcuts.
+  function firmwareHidSignal(ev) {
+    if (cfg.hidProfile === 'off' || !ev.isTrusted || ev.repeat || ev.isComposing) return null;
+    if (ev.metaKey || ev.shiftKey) return null;
+    if (cfg.hidProfile === 'function') {
+      if (ev.code === 'F23' || ev.key === 'F23') return 'on';
+      if (ev.code === 'F24' || ev.key === 'F24') return 'off';
+      return null;
+    }
+    // HID usage 0xE4 = right Ctrl; 0xE6 = right Alt.
+    // Right Alt may be reported as AltGraph on some Windows layouts.
+    if (cfg.hidProfile === 'right') {
+      if (ev.code === 'ControlRight' && ev.key === 'Control' && !ev.altKey) return 'on';
+      if (ev.code === 'AltRight' && (ev.key === 'Alt' || ev.key === 'AltGraph')) return 'off';
+      return null;
+    }
+    // Experimental: left/right Ctrl/Alt indistinguishable from normal typing.
+    if (cfg.hidProfile === 'any') {
+      if (ev.key === 'Control' && !ev.altKey) return 'on';
+      if ((ev.key === 'Alt' || ev.key === 'AltGraph') && (ev.code === 'AltRight' || !ev.ctrlKey)) return 'off';
+    }
+    return null;
+  }
   function onKey(ev) {
-    if (dead || !ev.altKey || !ev.shiftKey || ev.ctrlKey || ev.metaKey) return;
+    if (dead) return;
+    const signal = active ? firmwareHidSignal(ev) : null;
+    if (signal) {
+      ev.preventDefault(); ev.stopImmediatePropagation();
+      hidAirTouch = signal === 'on';
+      lastHidEvent = (ev.code || ev.key) + ' → ' + signal.toUpperCase();
+      lastActivation = navigator.userActivation
+        ? (navigator.userActivation.isActive ? 'active' : 'inactive')
+        : 'not exposed';
+      panelUpdate();
+      // Must call synchronously inside trusted keydown for Pointer Lock.
+      if (signal === 'on' && !locked) requestVirtual();
+      if (signal === 'off' && locked && document.exitPointerLock) document.exitPointerLock();
+      return;
+    }
+    if (!ev.altKey || !ev.shiftKey || ev.ctrlKey || ev.metaKey) return;
     const key = ev.key.toLowerCase();
     if (!['m', 'c', 'p', 'd'].includes(key)) return;
     ev.preventDefault(); ev.stopImmediatePropagation();
@@ -486,6 +541,14 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
     if (!monitoring) startMonitoring();
     else if (!pollBusy) void pullStatus();
   });
+  $('hidProfile').addEventListener('change', e => {
+    cfg.hidProfile = e.target.value;
+    hidAirTouch = null;
+    lastHidEvent = '';
+    persist();
+    if (locked && effectiveAirTouch() !== true && document.exitPointerLock) document.exitPointerLock();
+    panelUpdate();
+  });
   $('on').addEventListener('change', e => { active = e.target.checked; if (!active && locked) document.exitPointerLock(); panelUpdate(); render(); });
   root.querySelectorAll('[data-flag]').forEach(input => input.addEventListener('change', e => { cfg[e.target.dataset.flag] = e.target.checked; persist(); resetDwell(); render(); }));
   for (const [id, key, output, fmt] of [['radius','radius','radiusOut',v=>v+' px'], ['sensitivity','sensitivity','sensitivityOut',v=>Number(v).toFixed(1)+'×'], ['dwellMs','dwellMs','dwellOut',v=>v+' ms']]) {
@@ -508,7 +571,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
     observer.observe(document.documentElement, {childList:true,subtree:true,attributes:true,attributeFilter:['style','class','aria-hidden','disabled']});
   }
   const ticker = setInterval(() => { if (!dead && active && cfg.dwell) render(); }, 45);
-  window[KEY] = {stop, togglePanel, recenter, getState: () => ({cfg:Object.assign({},cfg),virtual,locked,active,monitoring,bridgeOnline,bleConnected,airTouch,batteryLevel,mapAt,lastError})};
-  panelUpdate(); scan(); startMonitoring();
-  note('Mudra Smart Cursor active. Checking local desktop companion automatically.');
+  window[KEY] = {stop, togglePanel, recenter, getState: () => ({cfg:Object.assign({},cfg),virtual,locked,active,monitoring,bridgeOnline,bleConnected,airTouch,batteryLevel,mapAt,lastError,hidAirTouch,lastHidEvent,lastActivation})};
+  panelUpdate(); scan();
+  note('HID control ready. Right Ctrl → virtual ON; Right Alt → OFF. No helper required.');
 })();
