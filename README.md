@@ -72,3 +72,31 @@ Commit `index.html` and `extension/engine.js` after rebuilding. `src/engine.js` 
 4. Open `https://<your-username>.github.io/mouse_test/` after Pages publishes.
 
 This project stores no user movement logs, makes no requests to analytics, and never sends HID signals to a server. Nothing in the code identifies connected hardware; it works with an ordinary mouse too.
+## Firmware-linked Air Touch (v1.1)
+
+This browser prototype uses the **existing Mudra firmware protocol** without
+changing firmware settings. Click **Connect Mudra** in the injected panel.
+Chrome asks which Bluetooth device to authorize. On Windows the device may
+already be paired as a HID mouse; GATT access can still be unavailable on some
+Bluetooth stacks.
+
+- Service `FFF0`, command characteristic `FFF1` (notify/write).
+- System map query: `75 00 00` every 750 ms.
+- Response header `01`: firmware IMU master at offset 2 and Air Touch
+  (`imuSpecific[10]`) at offset **15** in the current 26+ byte map.
+- Air Touch OFF, disconnect, or a stale system map releases Pointer Lock
+  back to ordinary HID; Air Touch ON permits virtual mode.
+- Battery service `180F`, characteristic `2A19`: read on connect and every
+  30 seconds (or notify when supported). Missing battery read does not
+  affect the main GATT link.
+- An upward motion at the screen edge **never** exits virtual mode.
+- A fast horizontal left/right shake enlarges and re-centers the virtual
+  pointer. Shake is detected from existing HID motion, without adding
+  firmware data streams.
+
+**Browser security limitation:** Chrome requires an actual user activation to
+enter Pointer Lock. Air Touch ON cannot silently enter virtual mode from a GATT
+notification. Click **Enter virtual** when the firmware status says ON. The
+firmware can switch virtual mode OFF without a click. The real OS cursor is
+never teleported by page JavaScript. The bookmarklet's Web Bluetooth pairing
+is per website origin, and some pages prohibit Bluetooth or bookmarklets.
