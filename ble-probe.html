@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#08182a">
+<title>Mudra BLE · No-install browser feasibility test</title>
+<style>
+:root{font:15px/1.55 ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#eaf6ff;background:#08111f}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 80% -10%,#123e50 0,transparent 42%),#08111f}
+a{color:#7de4ee}
+main{max-width:880px;padding:24px 18px 90px;margin:auto}
+.top{display:flex;align-items:center;justify-content:space-between;gap:18px;font-size:13px}
+.logo{font-weight:800;letter-spacing:.1em}.logo span{color:#60dbea}
+h1{font-size:clamp(30px,5vw,50px);letter-spacing:-.055em;line-height:1.12;margin:34px 0 16px}
+h1 em{font-style:normal;color:#67dfec}
+.lead{font-size:16px;color:#a4c1d2;line-height:1.7;max-width:750px}
+.panel{border-radius:18px;padding:23px;margin-top:21px;border:1px solid #315165;background:#112439}
+.panel h2{font-size:19px;margin:0 0 10px}
+.small{color:#abc4d5;font-size:13px}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin:16px 0 8px}
+button,select{font:inherit;color:#f1fcff;border-radius:9px;border:1px solid #4a7386;background:#172f44;padding:10px 14px;cursor:pointer}
+button.primary{background:#58d8e8;color:#09202a;border-color:#7ee7f4;font-weight:750}
+button:disabled{opacity:.42;cursor:not-allowed}
+button:focus-visible,select:focus-visible{outline:2px solid #b7fffb;outline-offset:2px}
+.badge{font-size:11px;border-radius:999px;padding:3px 10px;border:1px solid #4a6379;color:#9bb7cc;white-space:nowrap}
+.pass{color:#7bffcd;border-color:#246d59}.fail{color:#ff9c98;border-color:#7c4a4a}.warn{color:#ffd592;border-color:#755d37}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px}
+.metric{background:#0c1b2b;border:1px solid #29485a;border-radius:10px;padding:11px 13px;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.metric .label{color:#c5dcea;font-size:13px}
+.note{font-size:12px;color:#92acbd;line-height:1.65}
+.field{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:13px 0}
+.field label{color:#b0c7d4;font-size:13px}
+pre{font:12px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;word-break:break-word;color:#caeaf5;background:#071623;border:1px solid #24425a;border-radius:10px;min-height:180px;max-height:420px;overflow:auto;padding:13px}
+#help{min-height:37px;color:#d1e9f5;font-size:13px}
+#authorized{max-width:270px}
+footer{margin-top:20px;color:#819aaf;font-size:12px}
+@media(max-width:650px){.grid{grid-template-columns:1fr}.panel{padding:17px}}
+</style>
+</head>
+<body>
+<main>
+<nav class="top"><div class="logo">MUDRA <span>· WEB BLE TEST</span></div><a href="./">← Smart Cursor</a></nav>
+<h1>Can Chrome read a <em>HID-connected Mudra Band?</em></h1>
+<p class="lead">Test the exact browser Bluetooth capabilities that Flutter Web's <code>universal_ble</code> uses. No download, desktop companion, Windows re-pairing, firmware changes or access to the system HID mouse is required. This is a <strong>feasibility test</strong>, not yet a Flutter app.</p>
+<div class="panel">
+  <h2>1 · Check browser and previous authorization</h2>
+  <div class="grid">
+    <div class="metric"><span class="label">Secure HTTPS</span><span class="badge" id="s-https">Checking</span></div>
+    <div class="metric"><span class="label">Web Bluetooth</span><span class="badge" id="s-bluetooth">Checking</span></div>
+    <div class="metric"><span class="label">Already authorized by this site</span><span class="badge" id="s-authorized">Checking</span></div>
+    <div class="metric"><span class="label">GATT connected</span><span class="badge" id="s-gatt">Not tested</span></div>
+    <div class="metric"><span class="label">Mudra FFF0 / FFF1</span><span class="badge" id="s-service">Not tested</span></div>
+    <div class="metric"><span class="label">Live Air Touch system map</span><span class="badge" id="s-map">Not tested</span></div>
+    <div class="metric"><span class="label">Battery (optional)</span><span class="badge" id="s-battery">Not tested</span></div>
+    <div class="metric"><span class="label">HID mouse still moves</span><span class="badge" id="s-hid">Check manually</span></div>
+  </div>
+  <div class="actions">
+    <button id="check">Check browser permissions</button>
+    <select id="authorized" aria-label="Previously authorized devices"><option value="">No devices authorized yet</option></select>
+    <button id="reconnect" disabled>Connect authorized Mudra</button>
+  </div>
+  <div id="help" role="status" aria-live="polite">Checking browser features…</div>
+</div>
+<div class="panel">
+  <h2>2 · First-time authorization, only if necessary</h2>
+  <p class="small">Keep Mudra connected to Windows/macOS as a HID mouse. Chrome may require a one-time chooser even when the OS already paired it. The chooser can discover nearby BLE devices; <strong>select only your existing Mudra</strong>. This page never initiates OS pairing or a general unfiltered scan.</p>
+  <div class="field">
+    <label for="filter">Find your band using</label>
+    <select id="filter">
+      <option value="Mudra">Advertised name begins with “Mudra”</option>
+      <option value="Wearable">Advertised name begins with “Wearable”</option>
+      <option value="service">Advertised service FFF0</option>
+    </select>
+  </div>
+  <div class="actions">
+    <button class="primary" id="authorize">Authorize this Mudra in Chrome</button>
+    <button id="mapOnce" disabled>Read system map now</button>
+    <button id="pause" disabled>Pause map monitoring</button>
+  </div>
+  <p class="note">If Mudra isn't listed, that's a meaningful result: Chrome's Web Bluetooth chooser may not see a device already connected to the OS HID stack. Try the other filters, but do not unpair it. Never grant access to another device to make the test pass.</p>
+</div>
+<div class="panel">
+  <h2>3 · Live firmware readings</h2>
+  <div class="grid">
+    <div class="metric"><span class="label">Device</span><span id="deviceName">Not selected</span></div>
+    <div class="metric"><span class="label">Air Touch</span><span id="airTouch">Unknown</span></div>
+    <div class="metric"><span class="label">Battery</span><span id="batteryLevel">Unknown</span></div>
+    <div class="metric"><span class="label">System map packets</span><span id="mapCount">0</span></div>
+  </div>
+  <p class="note">Firmware query: <code>75 00 00</code> (GET only) via FFF1. System-map header: <code>01</code>, Air Touch = IMU master byte 2 AND IMU-specific byte 15. Battery is optional service 180F/2A19. No Air Touch enable/disable writes.</p>
+</div>
+<div class="panel">
+  <h2>4 · Diagnostic log</h2>
+  <p class="small">If a step fails, copy this report back into ChatGPT. It includes API results and errors, but not Bluetooth IDs, MAC addresses, or identifying device identifiers.</p>
+  <div class="actions"><button id="copy">Copy diagnostic report</button><button id="clear">Clear log</button></div>
+  <pre id="log" role="log" aria-live="off"></pre>
+</div>
+<footer>Works in compatible Chromium-based browsers on HTTPS. Safari/Firefox may not support Web Bluetooth. Previously authorized devices are website-origin specific. Hardware access must be verified on your actual Mudra Band.</footer>
+</main>
+<script>
+(function () {
+'use strict';
+const bluetooth = navigator.bluetooth;
+const $ = id => document.getElementById(id);
+const records = [];
+let authorized = [];
+let device = null;
+let command = null;
+let monitorTimer = null;
+let mapBusy = false;
+let mapSeen = 0;
+let stopped = false;
+let battery = null;
+const stages = {};
+function badge(id, text, kind) {
+  const el = $('s-' + id);
+  if (!el) return;
+  el.textContent = text;
+  el.className = 'badge ' + (kind || '');
+  stages[id] = text;
+}
+function log(level, text) {
+  const line = new Date().toISOString().slice(11,23) + ' [' + level + '] ' + text;
+  records.push(line);
+  if (records.length > 140) records.shift();
+  $('log').textContent = records.join('\n');
+  $('log').scrollTop = $('log').scrollHeight;
+}
+function help(text) { $('help').textContent = text; }
+function hex(bytes) { return Array.from(bytes).map(n => n.toString(16).padStart(2,'0')).join(' '); }
+function boolByte(n) { return n === 0 || n === 1; }
+function parseSystemMap(bytes) {
+  if (!bytes || bytes[0] !== 0x01) return {valid:false,reason:'not a system map'};
+  if (bytes.length === 21) return {valid:true,legacy:true,airTouch:null,reason:'21-byte legacy map: no Air Touch flag'};
+  if (bytes.length < 26) return {valid:false,reason:'incomplete map (' + bytes.length + ' bytes)'};
+  let sncLength = 5;
+  if (bytes.length >= 27) {
+    const oldLayout = !boolByte(bytes[24]) && boolByte(bytes[25]);
+    const newLayout = boolByte(bytes[24]) && !boolByte(bytes[25]) && boolByte(bytes[26]);
+    if (oldLayout === newLayout) return {valid:false,reason:'ambiguous current map layout'};
+    sncLength = newLayout ? 6 : 5;
+  }
+  if (!boolByte(bytes[2]) || !boolByte(bytes[15])) return {valid:false,reason:'invalid IMU or Air Touch state'};
+  return {valid:true,legacy:false,airTouch:bytes[2] === 1 && bytes[15] === 1,
+    imuMaster:bytes[2] === 1,airTouchFlag:bytes[15],sncLength:sncLength,length:bytes.length};
+}
+function onValue(event) {
+  const view = event.target.value;
+  if (!view) return;
+  const bytes = new Uint8Array(view.buffer,view.byteOffset,view.byteLength).slice();
+  if (bytes[0] !== 0x01) {
+    if (records.length < 20) log('INFO','FFF1 notification header ' + hex(bytes.slice(0,Math.min(12,bytes.length))));
+    return;
+  }
+  const parsed = parseSystemMap(bytes);
+  if (!parsed.valid) {
+    log('WARN','System-map reply: ' + parsed.reason + '; raw (' + bytes.length + ' bytes) ' + hex(bytes.slice(0,48)));
+    badge('map','Invalid / incomplete','warn');
+    return;
+  }
+  mapSeen += 1;
+  $('mapCount').textContent = String(mapSeen);
+  if (parsed.legacy) {
+    $('airTouch').textContent = 'Not available (legacy map)';
+    badge('map','Legacy map received','warn');
+    log('WARN',parsed.reason + '; raw ' + hex(bytes));
+    return;
+  }
+  badge('map','PASS · live FFF1 map','pass');
+  $('airTouch').textContent = parsed.airTouch ? 'ON' : 'OFF';
+  if (mapSeen <= 5 || mapSeen % 10 === 0)
+    log('PASS','System map #' + mapSeen + ': Air Touch ' + (parsed.airTouch?'ON':'OFF') +
+      ', IMU master ' + (parsed.imuMaster?'ON':'OFF') + ', bytes=' + parsed.length + ', SNC=' + parsed.sncLength);
+}
+function onGattDisconnected() {
+  stopMonitoring();
+  command = null;
+  badge('gatt','Disconnected','warn');
+  badge('service','Not connected','warn');
+  badge('map','Not connected','warn');
+  $('mapOnce').disabled = true;
+  log('WARN','Browser GATT disconnected; OS Bluetooth pairing was not modified by this page.');
+}
+async function requestMap() {
+  if (!command || mapBusy || stopped) return;
+  mapBusy = true;
+  try {
+    const data = new Uint8Array([0x75,0x00,0x00]);
+    if (command.properties.write) {
+      if (command.writeValueWithResponse) await command.writeValueWithResponse(data);
+      else await command.writeValue(data);
+    } else if (command.properties.writeWithoutResponse) {
+      if (command.writeValueWithoutResponse) await command.writeValueWithoutResponse(data);
+      else await command.writeValue(data);
+    } else throw new Error('FFF1 has no write property');
+    if (mapSeen === 0) log('INFO','Sent system-map GET (75 00 00), waiting for FFF1 notification');
+  } catch (e) {
+    log('FAIL','System-map request: ' + e.name + ': ' + e.message);
+    badge('map','GET failed','fail');
+    stopMonitoring();
+  } finally { mapBusy = false; }
+}
+function stopMonitoring() {
+  if (monitorTimer) clearInterval(monitorTimer);
+  monitorTimer = null;
+  stopped = true;
+  $('pause').textContent = 'Resume map monitoring';
+}
+function startMonitoring() {
+  if (!command || !device || !device.gatt.connected) return;
+  stopped = false;
+  if (monitorTimer) clearInterval(monitorTimer);
+  monitorTimer = setInterval(() => void requestMap(), 1500);
+  $('pause').disabled = false;
+  $('pause').textContent = 'Pause map monitoring';
+  void requestMap();
+}
+async function readBattery(server) {
+  try {
+    const service = await server.getPrimaryService(0x180f);
+    const ch = await service.getCharacteristic(0x2a19);
+    const value = await ch.readValue();
+    const n = value.getUint8(0);
+    if (n > 100) throw new Error('Battery returned ' + n);
+    battery = n;
+    $('batteryLevel').textContent = n + '%';
+    badge('battery','PASS · ' + n + '%','pass');
+    log('PASS','Battery Service 180F/2A19 read succeeded: ' + n + '%');
+  } catch (e) {
+    badge('battery','Optional / unavailable','warn');
+    log('WARN','Battery 180F/2A19 unavailable: ' + e.name + ': ' + e.message);
+  }
+}
+async function connect(d, reason) {
+  if (!d) return;
+  if (!bluetooth) return;
+  if (device && device !== d) {
+    log('WARN','Switching browser target; existing GATT session may remain open. No OS unpairing.');
+  }
+  device = d;
+  device.addEventListener('gattserverdisconnected',onGattDisconnected);
+  $('deviceName').textContent = d.name || '(unnamed authorized device)';
+  badge('authorized','Authorized','pass');
+  help('Trying existing HID-connected Mudra over browser GATT…');
+  stopped = false;
+  mapSeen = 0;
+  $('mapCount').textContent = '0';
+  try {
+    log('INFO','Connecting via GATT (' + reason + ') to device named "' + (d.name||'unnamed') + '".');
+    const server = await d.gatt.connect();
+    badge('gatt','PASS · connected','pass');
+    log('PASS','Browser GATT connected while Mudra should remain OS HID-paired.');
+    const service = await server.getPrimaryService(0xfff0);
+    log('PASS','Custom Mudra FFF0 service accessible.');
+    const ch = await service.getCharacteristic(0xfff1);
+    if (!ch.properties.notify) throw new Error('FFF1 exists but notifications are not supported');
+    if (!ch.properties.write && !ch.properties.writeWithoutResponse)
+      throw new Error('FFF1 exists but is not writable for the GET request');
+    await ch.startNotifications();
+    ch.addEventListener('characteristicvaluechanged',onValue);
+    command = ch;
+    $('mapOnce').disabled = false;
+    badge('service','PASS · notify + write','pass');
+    log('PASS','FFF1 notifications subscribed and GET capability present.');
+    help('GATT + FFF1 accessible. Reading system map and optional battery…');
+    startMonitoring();
+    await readBattery(server);
+    log('INFO','Try turning Air Touch ON/OFF in firmware and confirm the live indicator changes. Also confirm Windows/macOS HID still moves.');
+  } catch (e) {
+    if (!device || !device.gatt || !device.gatt.connected) badge('gatt','Failed','fail');
+    else badge('service','Failed','fail');
+    log('FAIL','Browser GATT / service access: ' + e.name + ': ' + e.message);
+    help('This test did not reach Mudra system-map notifications. Copy the diagnostic report, including the failing stage.');
+    $('mapOnce').disabled = true;
+    stopMonitoring();
+  }
+}
+async function checkAuthorized(auto) {
+  badge('https',window.isSecureContext ? 'PASS · HTTPS' : 'Not secure',window.isSecureContext?'pass':'fail');
+  if (!bluetooth) {
+    badge('bluetooth','Not supported','fail');
+    badge('authorized','Unavailable','fail');
+    help('This browser does not expose Web Bluetooth. Use Chrome or Edge on a desktop with Bluetooth.');
+    log('FAIL','navigator.bluetooth unavailable.');
+    return;
+  }
+  try {
+    const supported = typeof bluetooth.getAvailability === 'function'
+      ? await bluetooth.getAvailability() : true;
+    badge('bluetooth',supported ? 'API available' : 'Adapter unavailable',supported?'pass':'fail');
+    if (!supported) log('WARN','Browser says Bluetooth unavailable or disabled.');
+    if (typeof bluetooth.getDevices !== 'function') {
+      badge('authorized','getDevices unavailable','warn');
+      help('Web Bluetooth exists but this browser does not expose the previous-authorizations API.');
+      return;
+    }
+    authorized = await bluetooth.getDevices();
+    const list = $('authorized');
+    list.textContent = '';
+    if (authorized.length === 0) {
+      list.add(new Option('No devices authorized yet',''));
+      badge('authorized','0 site-authorized','warn');
+      $('reconnect').disabled = true;
+      help('No prior permission for this WEBSITE. OS pairing is separate. Use Authorize this Mudra below once.');
+      log('INFO','getDevices(): 0 authorized devices for this HTTPS origin. This does NOT mean Windows/macOS is unpaired.');
+    } else {
+      authorized.forEach((d,i) => list.add(new Option(d.name || 'Authorized BLE device ' + (i+1),String(i))));
+      const preferred = authorized.findIndex(d => /mudra|wearable/i.test(d.name||''));
+      list.value = String(preferred >= 0 ? preferred : 0);
+      badge('authorized',authorized.length + ' permitted','pass');
+      $('reconnect').disabled = false;
+      help('Browser permissions exist. Connect the authorized band without opening the chooser.');
+      log('PASS','getDevices(): ' + authorized.length + ' previously authorized device(s) for this site.');
+      if (auto && preferred >= 0 && authorized.length === 1) {
+        log('INFO','Reusing the single previously authorized Mudra automatically (no chooser).');
+        await connect(authorized[0],'previous browser authorization');
+      }
+    }
+  } catch (e) {
+    badge('authorized','Permission check failed','fail');
+    log('FAIL','getDevices(): ' + e.name + ': ' + e.message);
+    help('Browser permission query failed. A permissions policy or browser setting may block Web Bluetooth.');
+  }
+}
+$('check').addEventListener('click', () => void checkAuthorized(false));
+$('reconnect').addEventListener('click', () => {
+  const i = Number($('authorized').value);
+  if (authorized[i]) void connect(authorized[i],'authorized device');
+});
+$('authorize').addEventListener('click', async () => {
+  if (!bluetooth || !bluetooth.requestDevice) {
+    log('FAIL','requestDevice unavailable in this browser');
+    return;
+  }
+  const mode = $('filter').value;
+  const filters = mode === 'service' ? [{services:[0xfff0]}] : [{namePrefix:mode}];
+  let promise;
+  try {
+    // MUST be called directly during the user click (transient activation).
+    // Never call acceptAllDevices; no unfiltered nearby-device picker.
+    promise = bluetooth.requestDevice({filters,optionalServices:[0xfff0,0x180f]});
+    log('INFO','Chrome device chooser requested: ' + (mode === 'service' ? 'advertised FFF0' : 'namePrefix=' + mode));
+  } catch (e) {
+    log('FAIL','requestDevice start: ' + e.name + ': ' + e.message);
+    return;
+  }
+  try {
+    const selected = await promise;
+    log('PASS','Browser authorized the selected BLE device without unpairing OS HID.');
+    await connect(selected,'one-time browser chooser');
+    await checkAuthorized(false);
+  } catch (e) {
+    log('FAIL','Device chooser: ' + e.name + ': ' + e.message);
+    help('If the band did not appear while connected as OS HID, that is a browser visibility limitation. Try another strict filter, but do not unpair the band.');
+  }
+});
+$('mapOnce').addEventListener('click', () => {
+  if (stopped && command && device && device.gatt.connected) {
+    stopped = false;
+    void requestMap();
+    stopped = true;
+  } else void requestMap();
+});
+$('pause').addEventListener('click',() => {
+  if (stopped) startMonitoring();
+  else stopMonitoring();
+});
+$('copy').addEventListener('click',async () => {
+  const output = ['Mudra no-install Web Bluetooth feasibility test',
+    'Date: ' + new Date().toISOString(),
+    'Browser: ' + navigator.userAgent,
+    'Secure: ' + window.isSecureContext,
+    'OS-paired band was kept connected as HID (user to confirm)',
+    'Stages: ' + JSON.stringify(stages),
+    'Device name: ' + $('deviceName').textContent,
+    '--- log ---', ...records].join('\n');
+  try {
+    await navigator.clipboard.writeText(output);
+    help('Diagnostic report copied. Paste it in ChatGPT.');
+  } catch (e) {
+    log('WARN','Clipboard write failed: ' + e.message + '. Select the log and copy it manually.');
+  }
+});
+$('clear').addEventListener('click',() => {records.length=0;$('log').textContent='';});
+log('INFO','No native app, driver, localhost bridge or Bluetooth device scan started on page load.');
+void checkAuthorized(true);
+})();
+</script>
+</body>
+</html>
