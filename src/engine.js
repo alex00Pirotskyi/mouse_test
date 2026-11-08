@@ -39,18 +39,16 @@
   let observer;
   let toastTimer = 0;
   // Air Touch firmware state, not cursor boundary motion, owns virtual mode.
-  let bleDevice = null;
-  let bleCmd = null;
-  let bleBattery = null;
-  let bleBusy = false;
-  let bleWriting = false;
+  let monitoring = false;
+  let bridgeBusy = false;
+  let bridgeOnline = false;
+  let pollBusy = false;
   let bleConnected = false;
   let batteryLevel = null;
   let airTouch = null;
-  let mapAt = 0;
+  let mapAt = null;
   let lastError = '';
   let pollTimer = 0;
-  let batteryTimer = 0;
   let shakeTrail = [];
   let shakeLast = 0;
   let shakeTimer = 0;
@@ -101,9 +99,9 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
 <header><div><div class="brand">MUDRA <span style="color:#49cee8">CURSOR</span></div><div class="sub">Web precision assist</div></div><div style="display:flex;gap:4px"><button class="icon" id="min" title="Minimize" aria-label="Minimize panel">-</button><button class="icon" id="close" title="Close engine" aria-label="Close engine">×</button></div></header>
 <div id="controls">
   <div id="ble-card">
-    <div class="ble-line"><strong id="bleState">Mudra: Not connected</strong><button id="bleConnect">Connect Mudra</button></div>
+    <div class="ble-line"><strong id="bleState">Windows helper: Offline</strong><button id="bleConnect">Connect local helper</button></div>
     <div class="ble-line"><span id="bleAir">Air Touch: unknown</span><span id="bleBattery">Battery: —</span></div>
-    <div id="bleDetail" style="color:#8eafc4;font-size:10px">Read-only system map monitoring</div>
+    <div id="bleDetail" style="color:#8eafc4;font-size:10px">Uses Windows-paired Mudra. No Bluetooth scanning.</div>
   </div>
   <div class="actions"><button id="center">◎ Re-center</button><button id="mode" class="primary">Waiting for Air Touch</button></div>
   <div class="flags">
@@ -118,7 +116,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
   <div class="rlabel"><label for="sensitivity">Virtual sensitivity</label><output id="sensitivityOut"></output></div><input type="range" id="sensitivity" min="0.4" max="2.4" step="0.1">
   <div class="rlabel"><label for="dwellMs">Dwell time</label><output id="dwellOut"></output></div><input type="range" id="dwellMs" min="600" max="2000" step="50">
   <div id="status"><span id="dot"></span><span id="statusText">Normal HID mode</span></div>
-  <div class="note">Connect Mudra to monitor Air Touch. Air Touch OFF → normal HID; ON → virtual can be activated by clicking. Shake the virtual pointer to enlarge and re-center. Esc unlocks browser tabs; turning Air Touch OFF also unlocks. Browser may require a click to re-enter virtual. Assisted clicks and dwell are optional because they can activate website actions.</div>
+  <div class="note">Run Windows helper and click Connect local helper. It reads only already paired Windows BLE devices. Air Touch OFF → native HID; ON → virtual available after clicking. Shake to re-center; Esc unlocks browser tabs. Assisted clicks and dwell are optional because they can activate website actions.</div>
 </div></div>`;
   document.documentElement.appendChild(host);
   const $ = id => root.getElementById(id);
@@ -144,12 +142,12 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
     $('dwellMs').value = cfg.dwellMs; $('dwellOut').textContent = cfg.dwellMs + ' ms';
     $('mode').textContent = locked ? 'Exit virtual' : airTouch === true && bleConnected ? 'Enter virtual' : 'Waiting for Air Touch';
     $('mode').disabled = !locked && !(bleConnected && airTouch === true);
-    $('bleState').textContent = bleBusy ? 'Mudra: Connecting…' : bleConnected ? 'Mudra: Connected' : 'Mudra: Not connected';
-    $('bleConnect').textContent = bleConnected ? 'Disconnect' : 'Connect Mudra';
-    $('bleConnect').disabled = bleBusy;
+    $('bleState').textContent = bridgeBusy ? 'Windows helper: Connecting…' : !bridgeOnline ? 'Windows helper: Offline' : bleConnected ? 'Mudra: Connected through Windows' : 'Windows helper: Online';
+    $('bleConnect').textContent = monitoring ? 'Stop monitoring' : 'Connect local helper';
+    $('bleConnect').disabled = bridgeBusy;
     $('bleAir').textContent = 'Air Touch: ' + (airTouch === null ? 'unknown' : airTouch ? 'ON' : 'OFF');
     $('bleBattery').textContent = 'Battery: ' + (batteryLevel === null ? '—' : batteryLevel + '%');
-    $('bleDetail').textContent = lastError || (!bleConnected ? 'Read-only system map monitoring' : airTouch === null ? 'Waiting for firmware system map…' : airTouch && !locked ? 'Air Touch ON — click Enter virtual' : airTouch ? 'Virtual active' : 'Air Touch OFF — normal HID active');
+    $('bleDetail').textContent = lastError || (!bridgeOnline ? 'Start Windows helper, then click Connect local helper.' : !bleConnected ? 'Waiting for Windows-paired Mudra FFF0 GATT…' : airTouch === null ? 'Waiting for firmware system map…' : airTouch && !locked ? 'Air Touch ON — click Enter virtual' : airTouch ? 'Virtual active' : 'Air Touch OFF — normal HID active');
     $('statusText').textContent = locked ? 'Virtual (firmware Air Touch ON)' : bleConnected && airTouch ? 'Air Touch ON — click Enter virtual' : 'Normal HID cursor';
     $('dot').style.background = active ? '#39d69a' : '#e6a953';
     panel.classList.toggle('small', minimized);
@@ -335,7 +333,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
   function requestVirtual() {
     if (locked) { document.exitPointerLock(); return; }
     if (!active) { note('Enable the engine first.'); return; }
-    if (!bleConnected || airTouch !== true) { note('Connect Mudra and enable Air Touch in firmware first.'); return; }
+    if (!bleConnected || airTouch !== true) { note('Windows helper must report Mudra connected with Air Touch ON.'); return; }
     if (!document.documentElement.requestPointerLock) { note('Pointer Lock is not supported here.'); return; }
     try {
       const result = document.documentElement.requestPointerLock();
@@ -358,139 +356,87 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
   }
   function onLockError() { note('Pointer Lock unavailable on this page.'); }
 
-  // Firmware contract taken from MudraFlutter:
-  // FFF0 GATT service, FFF1 config/write+notify, 75 00 00 requests 0x01 map.
-  // Map bytes: 0 header, 1 IMU header, 2 IMU master, 5..16 12 IMU flags;
-  // byte 15 is imuSpecific[10] = Air Touch.
-  function decodeSystemMap(value) {
-    if (!value || value.length < 26 || value[0] !== 0x01) return null;
-    if (![0,1].includes(value[2]) || ![0,1].includes(value[15])) return null;
-    return { airTouch: value[2] === 1 && value[15] === 1, specific: value[15], imuMaster: value[2] };
+
+  // Local Windows companion polls the system-paired HID device for the
+  // existing Mudra FFF0/FFF1 map. Browser never discovers or pairs BLE devices.
+  const BRIDGE_URL = 'http://127.0.0.1:8765/api/status';
+  async function readLocalStatus() {
+    // In MV3 the extension worker can fetch loopback with host permission.
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id && chrome.runtime.sendMessage) {
+      return new Promise((resolve,reject) => {
+        chrome.runtime.sendMessage({type:'mudra-bridge-status'}, result => {
+          if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+          else if (!result || !result.ok) reject(new Error(result?.error || 'Windows helper unavailable'));
+          else resolve(result.status);
+        });
+      });
+    }
+    // Chrome may display its 'Loopback network' permission prompt. This
+    // request is *only* triggered after the user clicks Connect local helper.
+    const request = new Request(BRIDGE_URL, {
+      method:'GET', mode:'cors', cache:'no-store', targetAddressSpace:'loopback'
+    });
+    const response = await fetch(request);
+    if (!response.ok) throw new Error('Windows helper HTTP ' + response.status);
+    return response.json();
   }
-  function onFirmwareNotification(event) {
-    const view = event.target.value;
-    if (!view) return;
-    const packet = new Uint8Array(view.buffer,view.byteOffset,view.byteLength);
-    if (packet[0] !== 0x01) return;
-    const decoded = decodeSystemMap(packet);
-    if (!decoded) {
-      lastError = 'System map not recognized (need current 26+ byte map).';
-      panelUpdate();
-      return;
-    }
-    lastError = '';
-    mapAt = performance.now();
-    const before = airTouch;
-    airTouch = decoded.airTouch;
-    if (airTouch === false && locked && document.exitPointerLock) document.exitPointerLock();
-    if (before !== airTouch) {
-      resetDwell();
-      note(airTouch ? 'Firmware Air Touch ON. Click Enter virtual.' : 'Firmware Air Touch OFF. Normal HID cursor.');
-    }
+  function resetBridgeState(message) {
+    bridgeOnline = false;
+    bleConnected = false;
+    airTouch = null;
+    batteryLevel = null;
+    mapAt = null;
+    lastError = message || '';
+    if (locked && document.exitPointerLock) document.exitPointerLock();
     panelUpdate();
   }
-  function onBatteryNotification(event) {
-    const view = event.target.value;
-    if (view && view.byteLength >= 1) {
-      const n = view.getUint8(0);
-      if (n <= 100) { batteryLevel = n; panelUpdate(); }
-    }
-  }
-  async function refreshBattery() {
-    if (!bleConnected || !bleBattery) return;
-    try { onBatteryNotification({target:{value:await bleBattery.readValue()}}); }
-    catch (_) { /* Battery service may be unavailable for an active HID link. */ }
-  }
-  async function requestSystemMap() {
-    if (!bleConnected || !bleCmd || bleWriting || dead) return;
-    bleWriting = true;
+  async function pullStatus() {
+    if (!monitoring || dead || pollBusy) return;
+    pollBusy = true;
     try {
-      const payload = new Uint8Array([0x75,0x00,0x00]);
-      if (bleCmd.properties.write) await bleCmd.writeValueWithResponse(payload);
-      else if (bleCmd.properties.writeWithoutResponse) await bleCmd.writeValueWithoutResponse(payload);
-      else throw new Error('Mudra command characteristic is not writable.');
-    } catch (error) {
-      lastError = 'Map poll: ' + String(error.message || error).slice(0,95);
+      const status = await readLocalStatus();
+      if (!monitoring || dead) return;
+      if (!status || typeof status.connected !== 'boolean') throw new Error('Invalid helper response');
+      bridgeOnline = true;
+      const previous = airTouch;
+      bleConnected = status.connected;
+      airTouch = bleConnected && typeof status.airTouch === 'boolean' ? status.airTouch : null;
+      batteryLevel = bleConnected && Number.isInteger(status.batteryLevel) &&
+        status.batteryLevel >= 0 && status.batteryLevel <= 100 ? status.batteryLevel : null;
+      mapAt = typeof status.lastMapUtc === 'string' ? status.lastMapUtc : null;
+      lastError = status.error || (status.state === 'ready' ? '' : status.state === 'waiting-for-system-map' ? '' : status.state || '');
+      if (airTouch !== true && locked && document.exitPointerLock) document.exitPointerLock();
+      if (previous !== airTouch && airTouch !== null) {
+        resetDwell();
+        note(airTouch ? 'Firmware Air Touch ON — click Enter virtual.' : 'Firmware Air Touch OFF — normal HID mouse.');
+      }
       panelUpdate();
-    } finally { bleWriting = false; }
-  }
-  function disconnectBle() {
-    clearInterval(pollTimer); clearInterval(batteryTimer);
-    pollTimer = batteryTimer = 0;
-    if (bleCmd) {
-      try { bleCmd.removeEventListener('characteristicvaluechanged', onFirmwareNotification); } catch (_) {}
-    }
-    if (bleBattery) {
-      try { bleBattery.removeEventListener('characteristicvaluechanged', onBatteryNotification); } catch (_) {}
-    }
-    if (bleDevice) {
-      try { bleDevice.removeEventListener('gattserverdisconnected', onDeviceDisconnected); } catch (_) {}
-      try { if (bleDevice.gatt.connected) bleDevice.gatt.disconnect(); } catch (_) {}
-    }
-    bleDevice = bleCmd = bleBattery = null;
-    bleConnected = false; bleBusy = false; bleWriting = false;
-    airTouch = null; batteryLevel = null; mapAt = 0;
-    lastError = '';
-    if (locked && document.exitPointerLock) document.exitPointerLock();
-    if (!dead) panelUpdate();
-  }
-  function onDeviceDisconnected() {
-    disconnectBle();
-    if (!dead) note('Mudra GATT disconnected. Normal HID mode restored.');
-  }
-  async function connectBle() {
-    if (dead || bleBusy || bleConnected) return;
-    if (!navigator.bluetooth || !navigator.bluetooth.requestDevice) {
-      lastError = 'Web Bluetooth unavailable here. Use Chrome on HTTPS.';
-      panelUpdate();
-      return;
-    }
-    bleBusy = true; lastError = ''; panelUpdate();
-    try {
-      // Only the user can choose a device. Some HID-connected bands don't
-      // advertise service UUIDs, so show all BLE devices in the chooser.
-      const chosen = await navigator.bluetooth.requestDevice({
-        acceptAllDevices: true, optionalServices: [0xfff0,0x180f]
-      });
-      if (dead) return;
-      bleDevice = chosen;
-      chosen.addEventListener('gattserverdisconnected', onDeviceDisconnected);
-      const gatt = await chosen.gatt.connect();
-      const mudra = await gatt.getPrimaryService(0xfff0);
-      const cmd = await mudra.getCharacteristic(0xfff1);
-      await cmd.startNotifications();
-      cmd.addEventListener('characteristicvaluechanged', onFirmwareNotification);
-      bleCmd = cmd;
-      bleConnected = true;
-      try {
-        const batteryService = await gatt.getPrimaryService(0x180f);
-        bleBattery = await batteryService.getCharacteristic(0x2a19);
-        if (bleBattery.properties.notify) {
-          await bleBattery.startNotifications();
-          bleBattery.addEventListener('characteristicvaluechanged', onBatteryNotification);
-        }
-        await refreshBattery();
-      } catch (_) { /* Missing or Windows-protected BAS is nonfatal. */ }
-      await requestSystemMap();
-      pollTimer = setInterval(() => {
-        if (mapAt && performance.now() - mapAt > 5000) {
-          airTouch = null;
-          if (locked && document.exitPointerLock) document.exitPointerLock();
-          lastError = 'System-map response stale. Normal HID mode.';
-          panelUpdate();
-        }
-        void requestSystemMap();
-      },750);
-      batteryTimer = setInterval(() => void refreshBattery(),30000);
-      note('Mudra GATT connected. Listening for System Map.');
     } catch (error) {
-      const message = String(error.message || error).slice(0,135);
-      disconnectBle();
-      lastError = 'BLE: ' + message;
-      if (!dead) note('Mudra connection failed. ' + message);
+      if (monitoring && !dead) resetBridgeState('Windows helper unavailable: ' +
+        String(error.message || error).slice(0,110) +
+        '. Start helper and allow Chrome Loopback network access.');
     } finally {
-      bleBusy = false; if (!dead) panelUpdate();
+      pollBusy = false;
+      bridgeBusy = false;
+      if (!dead) panelUpdate();
     }
+  }
+  function stopMonitoring() {
+    monitoring = false;
+    clearInterval(pollTimer);
+    pollTimer = 0;
+    bridgeBusy = false;
+    resetBridgeState('');
+  }
+  function startMonitoring() {
+    if (monitoring || dead) return;
+    monitoring = true;
+    bridgeBusy = true;
+    lastError = '';
+    panelUpdate();
+    // Initiated by explicit user click to allow browser loopback permission.
+    void pullStatus();
+    pollTimer = setInterval(() => void pullStatus(), 750);
   }
 
   function onKey(ev) {
@@ -508,7 +454,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
     if (dead) return;
     dead = true;
     if (locked && document.exitPointerLock) document.exitPointerLock();
-    disconnectBle();
+    stopMonitoring();
     clearTimeout(shakeTimer);
     document.removeEventListener('pointermove', onMove, true);
     document.removeEventListener('mousemove', onMove, true);
@@ -528,7 +474,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
   $('center').addEventListener('click', recenter);
   $('mode').addEventListener('click', requestVirtual);
   $('bleConnect').addEventListener('click', () => {
-    if (bleConnected) disconnectBle(); else void connectBle();
+    if (monitoring) stopMonitoring(); else startMonitoring();
   });
   $('on').addEventListener('change', e => { active = e.target.checked; if (!active && locked) document.exitPointerLock(); panelUpdate(); render(); });
   root.querySelectorAll('[data-flag]').forEach(input => input.addEventListener('change', e => { cfg[e.target.dataset.flag] = e.target.checked; persist(); resetDwell(); render(); }));
@@ -552,6 +498,6 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
     observer.observe(document.documentElement, {childList:true,subtree:true,attributes:true,attributeFilter:['style','class','aria-hidden','disabled']});
   }
   const ticker = setInterval(() => { if (!dead && active && cfg.dwell) render(); }, 45);
-  window[KEY] = {stop, togglePanel, recenter, getState: () => ({cfg:Object.assign({},cfg),virtual,locked,active,bleConnected,airTouch,batteryLevel,mapAt,lastError})};
+  window[KEY] = {stop, togglePanel, recenter, getState: () => ({cfg:Object.assign({},cfg),virtual,locked,active,monitoring,bridgeOnline,bleConnected,airTouch,batteryLevel,mapAt,lastError})};
   panelUpdate(); scan(); note('Mudra Smart Cursor active');
 })();
