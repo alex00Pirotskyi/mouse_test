@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="description" content="Mudra Smart Cursor: magnetic targets, sticky focus, click assistance, dwell click, and virtual pointer re-centering for your HID air mouse.">
+  <title>Mudra Smart Cursor | Web Precision for Air Mouse</title>
+  <style>
+    :root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a1020;color:#ecf6ff}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(1000px 520px at 70% -80px,#153f5c 0%,#101b30 38%,#0a1020 85%);min-height:100vh}
+    a{color:inherit}.shell{width:min(1100px,calc(100% - 40px));margin:auto}.nav{display:flex;justify-content:space-between;align-items:center;padding:27px 0;gap:10px}
+    .mark{font-size:15px;font-weight:900;letter-spacing:.09em}.mark b{color:#55d9ed}.nav a{font-size:13px;color:#afc9df;text-decoration:none}.nav a:hover{color:white}
+    .hero{padding:72px 0 70px;display:grid;grid-template-columns:1.15fr .85fr;align-items:center;gap:40px}
+    .eyebrow{text-transform:uppercase;letter-spacing:.16em;color:#63d4ed;font-size:11px;font-weight:800}.hero h1{font-size:clamp(45px,5.3vw,76px);line-height:1.045;letter-spacing:-.065em;margin:16px 0 22px;font-weight:850;max-width:700px}
+    .hero h1 em{font-style:normal;color:#6fe1ec}.lead{font-size:17px;color:#aac2d8;line-height:1.65;max-width:600px}
+    .actions{display:flex;gap:12px;flex-wrap:wrap;margin:29px 0 10px}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid #487084;border-radius:12px;padding:13px 18px;text-decoration:none;font-size:14px;font-weight:750;background:#15253b;color:#effcff;cursor:pointer;min-height:46px}
+    .btn.primary{background:linear-gradient(135deg,#3dc8e6,#2488af);border-color:#2eb7da;color:#041727;box-shadow:0 8px 26px #21aacc38}.btn:hover{filter:brightness(1.12)}.btn:focus-visible,input:focus-visible{outline:3px solid #88edff}
+    .caption{font-size:12px;color:#718da8;margin-top:15px}.badge{border:1px solid #2f566a;border-radius:99px;padding:7px 11px;background:#10283b;color:#9ce9f6;font-size:11px;font-weight:750;display:inline-block}
+    .visual{position:relative;min-height:340px;border:1px solid #28445f;border-radius:22px;background:linear-gradient(170deg,#142239,#10182a);padding:29px 26px;box-shadow:0 26px 90px #0006;overflow:hidden}
+    .chrome{display:flex;gap:6px;align-items:center;padding-bottom:25px;border-bottom:1px solid #263950}.dot{width:9px;height:9px;background:#35516a;border-radius:50%}.address{margin-left:12px;border:1px solid #2c425b;background:#0d182b;border-radius:6px;padding:7px 12px;color:#64839b;flex:1;font-size:11px}
+    .fake-row{margin:42px 0 18px;display:flex;gap:12px;align-items:center;justify-content:space-between}.fake-line{height:9px;border-radius:5px;background:#294257;margin-bottom:10px;max-width:175px}.fake-line.s{max-width:100px;opacity:.55}
+    .visual button{padding:13px 23px;border-radius:10px;border:1px solid #41d9ff;background:#163c59;color:#ddfaff;font-weight:700;font-size:13px;position:relative}
+    .visual button:after{content:"";position:absolute;inset:-10px;border:2px solid #54d3f5;border-radius:17px;box-shadow:0 0 0 7px #4dc8ed19}
+    .cursor{position:absolute;right:45px;top:125px;width:40px;height:50px;transform:rotate(-15deg)}.cursor svg{filter:drop-shadow(0 2px 5px #0009)}
+    .floater{position:absolute;left:22px;bottom:24px;color:#80cfec;font-size:11px;background:#0b2237;border:1px solid #356884;padding:8px 12px;border-radius:8px}
+    section{padding:37px 0}h2{font-size:30px;letter-spacing:-.035em;margin:0 0 12px}.section-sub{color:#95b0c8;font-size:15px;line-height:1.65;max-width:650px;margin-bottom:24px}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.card{border:1px solid #243d58;border-radius:15px;background:#101d30;padding:21px;min-height:165px}.card .num{color:#52cbe7;font-size:13px;font-weight:800}.card h3{font-size:16px;margin:15px 0 9px}.card p{color:#91aec6;font-size:13px;line-height:1.65;margin:0}
+    .install{display:grid;grid-template-columns:1fr 1fr;gap:18px}.box{background:#111f32;border:1px solid #2a4662;border-radius:17px;padding:23px}.box h3{margin:0 0 13px;font-size:20px}
+    .steps{margin:16px 0 0;padding-left:19px;color:#b5cce0;font-size:14px;line-height:1.9}.small{font-size:12px;color:#8aa8bf;line-height:1.65}.help{font-size:13px;color:#b4d5e8;background:#0b2034;border-left:3px solid #43c6e5;padding:12px 14px;margin-top:16px;border-radius:0 9px 9px 0}
+    .presets{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:13px}.chip{border-radius:7px;padding:8px 12px;color:#b4d0e7;border:1px solid #395875;background:#14273d;font-weight:700;cursor:pointer}.chip.selected{background:#1b5876;border-color:#4ad3ed;color:#fff}
+    .parameter{display:flex;align-items:center;justify-content:space-between;margin-top:14px;font-size:13px;color:#b8cada}.parameter output{color:#7ae4fa}input[type=range]{width:100%;margin:8px 0;accent-color:#42d4ea}
+    .status{margin-top:12px;color:#75ddbb;font-size:12px;min-height:22px}
+    .demo{border:1px solid #2b4a62;border-radius:17px;padding:23px;background:#111e30}.demoarea{background:repeating-linear-gradient(0deg,#14243a 0,#14243a 39px,#1c3048 40px);border:1px solid #304c67;border-radius:14px;min-height:230px;position:relative;overflow:hidden;margin-top:16px;cursor:crosshair}
+    .demoarea button{position:absolute;background:#203c59;color:#f0fbff;border:1px solid #4a789b;border-radius:9px;padding:11px 16px;cursor:pointer}.demoarea button:nth-child(1){top:32px;left:8%}.demoarea button:nth-child(2){top:96px;right:11%}.demoarea button:nth-child(3){bottom:35px;left:27%}
+    .demoarea .target{outline:2px solid #4bd6f9;outline-offset:7px;box-shadow:0 0 28px #4edaff44}.demo-status{font-size:12px;color:#8fdaf5;margin-top:10px;min-height:18px}
+    .foot{border-top:1px solid #22384d;padding:30px 0 50px;color:#6888a2;font-size:12px;display:flex;justify-content:space-between;gap:20px}
+    code{color:#baf1ff;background:#122b42;border-radius:4px;padding:2px 4px}
+    @media(max-width:780px){.hero{grid-template-columns:1fr;padding:35px 0 38px}.visual{min-height:290px}.grid{grid-template-columns:repeat(2,1fr)}.install{grid-template-columns:1fr}}
+    @media(max-width:540px){.shell{width:min(100% - 26px,1100px)}.grid{grid-template-columns:1fr}.hero h1{font-size:47px}.nav{padding:18px 0}.nav a{font-size:11px}.foot{flex-direction:column}}
+  </style>
+</head>
+<body>
+<div class="shell">
+  <nav class="nav"><span class="mark">MUDRA<b>/</b> SMART CURSOR</span><a href="https://github.com/alex00Pirotskyi/mouse_test" rel="noopener" target="_blank">Source on GitHub ↗</a></nav>
+  <main>
+    <div class="hero">
+      <div><span class="badge">● Designed for BLE HID air mice</span><h1>Your air mouse.<br><em>More precise.</em></h1>
+        <p class="lead">Magnetic targets, sticky selection, forgiving clicks, dwell activation, and a re-centerable virtual cursor. Built to make web browsing easier with your Mudra Band.</p>
+        <div class="actions"><a id="bookmarkletHero" class="btn primary" draggable="true" href="#install">✦ Drag to bookmarks bar</a><a class="btn" href="#install">How to install ↘</a></div>
+        <p class="caption">Standalone bookmarklet · No account, no tracking · No server required</p></div>
+      <div class="visual" aria-hidden="true"><div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="address">your favorite website</span></div>
+        <div class="fake-row"><div><div class="fake-line"></div><div class="fake-line s"></div></div><button>Continue</button></div><div class="fake-line" style="width:60%"></div><div class="fake-line" style="width:42%"></div>
+        <div class="cursor"><svg viewBox="0 0 32 42"><path d="M2 2L2 35L12 26L20 40L27 36L19 23L29 21Z" fill="white" stroke="#19506f" stroke-width="2"/></svg></div>
+        <div class="floater">◎ Magnetic target acquired</div></div>
+    </div>
+    <section id="features"><div class="eyebrow">Precision layer</div><h2>All the control features</h2><p class="section-sub">Works with ordinary HID mouse events. No special device permissions or firmware modifications are needed for browser-assisted mode.</p>
+      <div class="grid">
+        <article class="card"><span class="num">01 / MAGNET</span><h3>Magnetic targeting</h3><p>Detects nearby links and controls and highlights the best candidate with a generous target radius.</p></article>
+        <article class="card"><span class="num">02 / STICKY</span><h3>Sticky selection</h3><p>Hysteresis retains a selected element through small hand tremors without rapidly switching targets.</p></article>
+        <article class="card"><span class="num">03 / PRECISION</span><h3>Adaptive fine movement</h3><p>Slows virtual cursor motion around actionable targets. Normal OS cursor speed is unchanged.</p></article>
+        <article class="card"><span class="num">04 / CLICKS</span><h3>Optional click assist</h3><p>Redirects genuine near-miss clicks to eligible controls. Disabled by default for safety.</p></article>
+        <article class="card"><span class="num">05 / DWELL</span><h3>Optional dwell click</h3><p>Hold near a button to activate it. Requires a stable target and avoids some risky controls.</p></article>
+        <article class="card"><span class="num">06 / CENTER</span><h3>Virtual re-centering</h3><p>Re-center the virtual cursor with one action. Pointer Lock gives continuous relative motion at screen edges.</p></article>
+      </div>
+    </section>
+    <section id="install"><div class="eyebrow">Installation</div><h2>One-click on any supported site</h2><p class="section-sub">Drag the bookmarklet into Chrome's bookmarks bar once, then launch it on a normal webpage.</p>
+      <div class="install">
+        <div class="box"><h3>1. Bookmarklet</h3><p class="small">Show the bookmarks bar (<code>Ctrl+Shift+B</code> on Windows). Drag the button below onto it. It contains the full script, so it doesn't fetch code from an external server.</p>
+          <div class="actions"><a class="btn primary" id="bookmarklet" draggable="true" href="#install">✦ Mudra Smart Cursor</a><button class="btn" type="button" id="copy">Copy bookmarklet</button></div>
+          <ol class="steps"><li>Visit an ordinary HTTPS website.</li><li>Click the saved bookmark.</li><li>Use the floating panel to configure your mouse.</li><li>Click the bookmark again to collapse or expand the panel.</li></ol>
+          <div class="help">Some sites prohibit bookmarklets through Content Security Policy. Use the included Chrome extension instead if the bookmark doesn't run.</div>
+          <div class="status" id="copyStatus" role="status"></div>
+        </div>
+        <div class="box"><h3>2. Personalize your defaults</h3><div class="presets"><button class="chip selected" data-preset="balanced">Balanced</button><button class="chip" data-preset="steady">Steady</button><button class="chip" data-preset="fast">Fast</button></div>
+          <p class="small">Changing these values rebuilds the draggable bookmarklet. Adjust settings later inside its floating panel (saved separately per website).</p>
+          <div class="parameter"><label for="radius">Magnetic radius</label><output id="radiusOutput">30 px</output></div><input type="range" id="radius" min="5" max="100" value="30">
+          <div class="parameter"><label for="sensitivity">Virtual sensitivity</label><output id="sensitivityOutput">1.0×</output></div><input type="range" id="sensitivity" min="0.4" max="2.4" value="1.0" step="0.1">
+          <div class="parameter"><label for="dwell">Dwell delay</label><output id="dwellOutput">950 ms</output></div><input type="range" id="dwell" min="600" max="2000" value="950" step="50">
+          <div class="help">Re-center <code>Alt+Shift+C</code> · Virtual <code>Alt+Shift+P</code> · Panel <code>Alt+Shift+M</code> · Dwell <code>Alt+Shift+D</code> · Exit virtual <code>Esc</code></div>
+        </div>
+      </div>
+    </section>
+    <section><div class="eyebrow">Try the idea</div><h2>Interactive targeting demo</h2><p class="section-sub">Move your ordinary mouse near any demo button. The page will highlight whichever control is within your current magnetic radius. This demo never triggers actions.</p>
+      <div class="demo"><div class="demoarea" id="demo"><button type="button">Search</button><button type="button">Settings</button><button type="button">Continue</button></div><div class="demo-status" id="demoStatus">Move near a button to acquire a target.</div></div>
+    </section>
+    <section><div class="eyebrow">Compatibility</div><h2>Things browsers won't let us override</h2><p class="section-sub">A bookmarklet cannot reposition or slow the operating-system cursor. Virtual mode uses Pointer Lock and synthetic clicks, so some sites, embedded frames, protected controls, and drag-and-drop interactions may not work. Sticky selection is a visual targeting aid; it doesn't force native CSS <code>:hover</code> to stay active. Navigation/reloads end the bookmarklet session. Firmware-level orientation re-zeroing requires separate work on the Mudra Band itself.</p></section>
+  </main>
+  <footer class="foot"><span>Mudra Smart Cursor · Open source browser-side prototype</span><span>100% local execution · No telemetry · No device identification</span></footer>
+</div>
+<script>
+const ENGINE_SOURCE = __ENGINE_SOURCE__;
+const presetDefs = {balanced:{radius:30,sensitivity:1,dwellMs:950,releaseRadius:48,fineScale:.42},steady:{radius:48,sensitivity:.8,dwellMs:1200,releaseRadius:65,fineScale:.3},fast:{radius:22,sensitivity:1.35,dwellMs:800,releaseRadius:34,fineScale:.55}};
+const state = Object.assign({},presetDefs.balanced);
+function rebuild(){
+  const selected = {radius:Number(state.radius),sensitivity:Number(state.sensitivity),dwellMs:Number(state.dwellMs),releaseRadius:Number(state.releaseRadius),fineScale:Number(state.fineScale)};
+  const source = ENGINE_SOURCE.replace('/*MUDRA_PRESETS*/null',JSON.stringify(selected));
+  const url='javascript:'+encodeURIComponent(source);
+  for(const id of ['bookmarklet','bookmarkletHero']) document.getElementById(id).href=url;
+}
+function sync(){
+  document.getElementById('radius').value=state.radius;document.getElementById('radiusOutput').textContent=state.radius+' px';
+  document.getElementById('sensitivity').value=state.sensitivity;document.getElementById('sensitivityOutput').textContent=Number(state.sensitivity).toFixed(1)+'×';
+  document.getElementById('dwell').value=state.dwellMs;document.getElementById('dwellOutput').textContent=state.dwellMs+' ms';
+  rebuild();
+}
+document.querySelectorAll('[data-preset]').forEach(button=>button.addEventListener('click',()=>{
+  Object.assign(state,presetDefs[button.dataset.preset]);
+  document.querySelectorAll('[data-preset]').forEach(b=>b.classList.toggle('selected',b===button));sync();
+}));
+for(const [id,key] of [['radius','radius'],['sensitivity','sensitivity'],['dwell','dwellMs']]){
+  document.getElementById(id).addEventListener('input',event=>{
+    state[key]=Number(event.target.value);if(key==='radius')state.releaseRadius=Math.max(12+state.radius,48);
+    document.querySelectorAll('[data-preset]').forEach(b=>b.classList.remove('selected'));sync();
+  });
+}
+document.getElementById('copy').addEventListener('click',async()=>{
+  const value=document.getElementById('bookmarklet').href;const out=document.getElementById('copyStatus');
+  try{await navigator.clipboard.writeText(value);out.textContent='Bookmarklet copied. Create a bookmark, then paste this into its URL field.';}
+  catch(e){out.textContent='Copy unavailable. Drag the bookmarklet button to your bookmarks bar instead.';}
+});
+const demo=document.getElementById('demo'),status=document.getElementById('demoStatus'),demoButtons=[...demo.querySelectorAll('button')];
+let selectedDemo=null;
+function dist(rect,x,y){return Math.hypot(Math.max(rect.left-x,0,x-rect.right),Math.max(rect.top-y,0,y-rect.bottom));}
+demo.addEventListener('pointermove',e=>{
+  let found=null; let distance=state.radius+1;
+  if(selectedDemo&&dist(selectedDemo.getBoundingClientRect(),e.clientX,e.clientY)<=Math.max(state.releaseRadius,state.radius+12))found=selectedDemo;
+  else for(const b of demoButtons){const d=dist(b.getBoundingClientRect(),e.clientX,e.clientY);if(d<distance){distance=d;found=b;}}
+  selectedDemo=found;
+  demoButtons.forEach(b=>b.classList.toggle('target',b===found));
+  status.textContent=found?'Magnetic lock: '+found.textContent:'No target in range';
+});
+demo.addEventListener('pointerleave',()=>{selectedDemo=null;demoButtons.forEach(b=>b.classList.remove('target'));status.textContent='Move near a button to acquire a target.';});
+demo.addEventListener('click',e=>{if(e.target.tagName==='BUTTON')status.textContent='Demo target clicked: '+e.target.textContent;});
+sync();
+</script>
+</body></html>

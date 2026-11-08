@@ -1,0 +1,10 @@
+const fs = require('node:fs');
+const path = require('node:path');
+const base = __dirname;
+const source = fs.readFileSync(path.join(base, 'src', 'engine.js'), 'utf8');
+const html = fs.readFileSync(path.join(base, 'index.template.html'), 'utf8');
+const safe = JSON.stringify(source).replace(/</g, '\\u003c');
+fs.writeFileSync(path.join(base,'index.html'), html.replace('__ENGINE_SOURCE__', safe));
+fs.copyFileSync(path.join(base, 'src','engine.js'),path.join(base,'extension','engine.js'));
+fs.writeFileSync(path.join(base,'bookmarklet.txt'), 'javascript:' + encodeURIComponent(source.replace('/*MUDRA_PRESETS*/null',JSON.stringify({radius:30,sensitivity:1,dwellMs:950,releaseRadius:48,fineScale:.42}))) + '\n');
+console.log('Built index.html, bookmarklet.txt, and extension/engine.js from src/engine.js.');

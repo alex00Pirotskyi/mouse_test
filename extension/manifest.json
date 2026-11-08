@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Mudra Smart Cursor",
+  "version": "1.0.0",
+  "description": "Magnetic target assist and virtual precision cursor for BLE HID air mice.",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "action": {
+    "default_title": "Toggle Mudra Smart Cursor"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}
