@@ -1,6 +1,7 @@
 # Mudra Smart Cursor — macOS companion (Apple Silicon + Intel)
 
-This helper provides the **same local read-only JSON API** as the Windows companion:
+This helper bundles the same self-contained Smart Cursor website and provides the
+**same local read-only JSON API** as the Windows companion:
 `http://127.0.0.1:8765/api/status`. The existing GitHub Pages / Chrome extension
 can use either helper without changes.
 
@@ -36,9 +37,9 @@ report `no-system-connected-fff0-device` and will **not scan**.
    trust the source. When asked, allow Bluetooth access.
 5. Check `http://127.0.0.1:8765/api/status` in Chrome. A successful status
    includes `connected:true`, `airTouch:true/false`, and optional battery.
-6. The companion opens [Mudra Smart Cursor](https://alex00pirotskyi.github.io/mouse_test/)
-   automatically. Click **Start Smart Cursor**. Approve
-   Chrome's loopback access if prompted.
+6. The companion opens **http://127.0.0.1:8765/** automatically, serves the
+   bundled Smart Cursor page, and starts status monitoring. Because the
+   page and API are same-origin, no Chrome cross-origin permission is needed.
 
 To inspect system-connected FFF0 devices without BLE scanning:
 
@@ -74,10 +75,11 @@ Stop the helper with Ctrl+C.
 ## Build from source (requires Xcode Command Line Tools)
 
 ```bash
-mkdir -p out/MudraSmartCursorBridge.app/Contents/MacOS
+mkdir -p out/MudraSmartCursorBridge.app/Contents/MacOS out/MudraSmartCursorBridge.app/Contents/Resources
 cp mac-helper/Info.plist out/MudraSmartCursorBridge.app/Contents/Info.plist
+cp index.html out/MudraSmartCursorBridge.app/Contents/Resources/index.html
 swiftc -O mac-helper/Sources/MudraSmartCursorBridge/main.swift \
-  -framework CoreBluetooth -framework Network \
+  -framework CoreBluetooth -framework Network -framework AppKit \
   -o out/MudraSmartCursorBridge.app/Contents/MacOS/MudraSmartCursorBridge
 codesign --force --sign - out/MudraSmartCursorBridge.app
 out/MudraSmartCursorBridge.app/Contents/MacOS/MudraSmartCursorBridge --self-test

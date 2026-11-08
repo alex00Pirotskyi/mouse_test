@@ -29,6 +29,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "mac-helper/dist/MudraSmartCursorBridge.app/Contents/MacOS"
+          mkdir -p "mac-helper/dist/MudraSmartCursorBridge.app/Contents/Resources"
+          cp index.html "mac-helper/dist/MudraSmartCursorBridge.app/Contents/Resources/index.html"
           cp mac-helper/Info.plist "mac-helper/dist/MudraSmartCursorBridge.app/Contents/Info.plist"
           plutil -lint mac-helper/dist/MudraSmartCursorBridge.app/Contents/Info.plist
           swiftc -O mac-helper/Sources/MudraSmartCursorBridge/main.swift -framework CoreBluetooth -framework Network -o "mac-helper/dist/MudraSmartCursorBridge.app/Contents/MacOS/MudraSmartCursorBridge"

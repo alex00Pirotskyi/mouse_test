@@ -25,10 +25,12 @@ See [Windows instructions](windows-helper/README.md) or
    On macOS, run `MudraSmartCursorBridge.app/Contents/MacOS/MudraSmartCursorBridge`
    in Terminal and allow Bluetooth when prompted. An unsigned app may require
    a manual Open Anyway approval in macOS Privacy & Security.
-3. Open the [Mudra Smart Cursor website](https://alex00pirotskyi.github.io/mouse_test/),
-   click **Start Smart Cursor**. It checks local status automatically (no second connection click).
-4. Chrome may ask for permission to reach the local network / loopback address.
-   The panel shows the OS connection, firmware Air Touch state, and optional battery level.
+3. The desktop companion opens **http://127.0.0.1:8765/** automatically.
+   This is the same self-contained Smart Cursor website bundled into the app.
+   Cursor and status monitoring launch automatically—no second browser click.
+4. Because the page and status API share the same origin, Chrome does **not**
+   need cross-origin loopback permission for this local launch. The panel shows
+   connectivity, firmware Air Touch state, and optional battery level.
 5. When firmware Air Touch is ON, click **Enter virtual**; OFF or stale status
    returns to normal OS HID mode. Shake to enlarge and re-center the virtual cursor.
 
@@ -61,8 +63,9 @@ mode; moving to the top of the page no longer exits virtual mode.
 
 ## Security
 
-The native helper binds only `127.0.0.1:8765` and exposes read-only status.
-The website connects locally after a click, and the Chrome extension has a
+The native helper binds only `127.0.0.1:8765`, serves its bundled website,
+and exposes read-only status. This local page accesses the API same-origin,
+without Chrome's cross-origin permission. The Chrome extension has a
 narrow localhost host permission. Bookmarklets run in page origin, so sites
 granted loopback access may read the non-identifying status JSON.
 The native helper does not provide device identifiers or firmware write APIs.
@@ -81,3 +84,7 @@ allow concurrent GATT access to a particular BLE HID device; test on Mudra hardw
 ### If the page says Helper Offline
 
 Chrome's **Allow** permission lets the website access the loopback address, but does not install or start a desktop application. On the same computer, open `http://127.0.0.1:8765/api/status` directly. If it does not show a JSON response, the helper is not running or cannot bind port 8765. Launch the native companion and look for its log/output. If the JSON displays `connected:false`, the companion *is running* and the remaining problem is Windows/macOS GATT access rather than the website. The page retries automatically; it will update when the helper starts.
+
+## Single-launch desktop mode
+
+The native Windows EXE embeds the generated `index.html` as a resource. Both macOS `.app` builds contain it in `Contents/Resources`. Launching either starts an HTTP server at `http://127.0.0.1:8765/`, opens that same-origin page, and starts the cursor/status panel automatically. The GitHub Pages version is a download/bookmarklet landing page and needs the companion already running; on arbitrary pages use the companion plus Chrome extension. Neither operating system requires unpairing Mudra.

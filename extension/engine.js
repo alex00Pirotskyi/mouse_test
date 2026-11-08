@@ -361,6 +361,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
   // Local macOS/Windows companion reads the system-connected HID device for the
   // existing Mudra FFF0/FFF1 map. Browser never discovers or pairs BLE devices.
   const BRIDGE_URL = 'http://127.0.0.1:8765/api/status';
+  const NATIVE_LOCAL_UI = location.protocol === 'http:' && location.hostname === '127.0.0.1' && location.port === '8765';
   async function readLocalStatus() {
     // In MV3 the extension worker can fetch loopback with host permission.
     if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id && chrome.runtime.sendMessage) {
@@ -374,9 +375,14 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
     }
     // Chrome may display its 'Loopback network' permission prompt. This
     // request is *only* triggered after the user clicks Connect local helper.
-    const request = new Request(BRIDGE_URL, {
-      method:'GET', mode:'cors', cache:'no-store', targetAddressSpace:'loopback'
-    });
+    // Native application serves this page AND API on 127.0.0.1:8765.
+    // Same-origin requests need neither cross-origin CORS nor Chrome's
+    // Loopback network permission. Only remote pages use cross-origin access.
+    const request = NATIVE_LOCAL_UI
+      ? new Request('/api/status', {method:'GET',cache:'no-store'})
+      : new Request(BRIDGE_URL, {
+          method:'GET', mode:'cors',cache:'no-store',targetAddressSpace:'loopback'
+        });
     const response = await fetch(request);
     if (!response.ok) throw new Error('Local helper HTTP ' + response.status);
     return response.json();
@@ -413,7 +419,9 @@ header{display:flex;align-items:center;justify-content:space-between;padding:12p
       }
       panelUpdate();
     } catch (error) {
-      if (monitoring && !dead) resetBridgeState('Cannot reach the desktop companion at 127.0.0.1:8765. Allowing Chrome access does not start it. Launch the Mac/Windows app; use Test local service below. Browser error: ' +
+      if (monitoring && !dead) resetBridgeState((NATIVE_LOCAL_UI
+        ? 'Local companion is not responding to its own API. Restart the desktop app. '
+        : 'Cannot reach the desktop companion at 127.0.0.1:8765. Launch the native app, which opens its own local Smart Cursor page. ') +
         String(error.message || error).slice(0,95));
     } finally {
       pollBusy = false;

@@ -6,6 +6,9 @@ on:
     paths:
       - 'windows-helper/**'
       - 'mac-helper/**'
+      - 'src/**'
+      - 'index.html'
+      - 'index.template.html'
       - '.github/workflows/publish-preview.yml'
   workflow_dispatch:
 
@@ -49,6 +52,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "publish/MudraSmartCursorBridge.app/Contents/MacOS"
+          mkdir -p "publish/MudraSmartCursorBridge.app/Contents/Resources"
+          cp index.html "publish/MudraSmartCursorBridge.app/Contents/Resources/index.html"
           cp mac-helper/Info.plist "publish/MudraSmartCursorBridge.app/Contents/Info.plist"
           swiftc -O mac-helper/Sources/MudraSmartCursorBridge/main.swift -framework CoreBluetooth -framework Network -framework AppKit -o publish/MudraSmartCursorBridge.app/Contents/MacOS/MudraSmartCursorBridge
           codesign --force --sign - "publish/MudraSmartCursorBridge.app"

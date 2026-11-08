@@ -292,11 +292,16 @@ private final class MudraMonitor: NSObject, CBCentralManagerDelegate, CBPeripher
 
 private final class StatusServer {
     private let monitor: MudraMonitor
+    private let siteHTML: Data?
     private let listener: NWListener
     private let queue = DispatchQueue(label: "mudra.bridge.http")
 
     init(monitor: MudraMonitor) throws {
         self.monitor = monitor
+        // The signed/unsigned .app bundle includes the self-contained
+        // static page at Contents/Resources/index.html.
+        let bundledPage = Bundle.main.url(forResource: "index", withExtension: "html")
+        self.siteHTML = bundledPage.flatMap { try? Data(contentsOf: $0) }
         let params = NWParameters.tcp
         // Restrict service to this Mac. Never listen on LAN interfaces.
         params.requiredLocalEndpoint = .hostPort(
@@ -314,7 +319,7 @@ private final class StatusServer {
                 // Browser loopback consent may still be requested once.
                 if !CommandLine.arguments.contains("--no-browser") {
                     DispatchQueue.main.async {
-                        if let url = URL(string: "https://alex00pirotskyi.github.io/mouse_test/") {
+                        if let url = URL(string: "http://127.0.0.1:8765/") {
                             NSWorkspace.shared.open(url)
                         }
                     }
@@ -369,7 +374,16 @@ private final class StatusServer {
                 let status = DispatchQueue.main.sync { self.monitor.snapshot() }
                 let output = (try? JSONEncoder().encode(status)) ?? Data("{}".utf8)
                 self.respond(connection, status: "200 OK", data: output, contentType: "application/json; charset=utf-8")
-            } else if path == "/health" || path == "/" {
+            } else if path == "/" {
+                guard let page = siteHTML else {
+                    self.respond(connection, status: "503 Service Unavailable",
+                                 data: Data("Bundled Smart Cursor page is missing.".utf8),
+                                 contentType: "text/plain; charset=utf-8")
+                    return
+                }
+                self.respond(connection, status: "200 OK", data: page,
+                             contentType: "text/html; charset=utf-8")
+            } else if path == "/health" {
                 self.respond(connection, status: "200 OK",
                              data: Data("Mudra macOS bridge running".utf8),
                              contentType: "text/plain; charset=utf-8")

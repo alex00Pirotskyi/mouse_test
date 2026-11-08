@@ -8,4 +8,8 @@
     <AssemblyName>MudraSmartCursorBridge</AssemblyName>
     <RootNamespace>MudraSmartCursorBridge</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- Embeds the self-contained Smart Cursor website inside the single-file EXE. -->
+    <EmbeddedResource Include="../index.html" LogicalName="MudraSmartCursorBridge.index.html" />
+  </ItemGroup>
 </Project>

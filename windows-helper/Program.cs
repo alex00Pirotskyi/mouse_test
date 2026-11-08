@@ -1,5 +1,6 @@
 using System.Net;
 using System.Diagnostics;
+using System.Reflection;
 using MudraSmartCursorBridge;
 
 if (!OperatingSystem.IsWindows())
@@ -40,7 +41,14 @@ app.Use(async (context, next) =>
 });
 app.MapGet("/api/status", (MudraDeviceReader reader) => Results.Json(reader.GetStatus()));
 app.MapGet("/health", () => Results.Text("Mudra Smart Cursor Bridge is running"));
-app.MapGet("/", () => Results.Text("Mudra Smart Cursor Bridge. Read-only API: /api/status"));
+// Serve the same built website from the companion itself. No browser
+// cross-origin requests or Local Network Access permission are needed here.
+using var siteStream = Assembly.GetExecutingAssembly()
+    .GetManifestResourceStream("MudraSmartCursorBridge.index.html")
+    ?? throw new InvalidOperationException("Embedded index.html missing from native build.");
+using var siteReader = new StreamReader(siteStream);
+var siteHtml = siteReader.ReadToEnd();
+app.MapGet("/", () => Results.Content(siteHtml, "text/html; charset=utf-8"));
 Console.WriteLine("Mudra Bridge http://127.0.0.1:8765");
 Console.WriteLine("Reads paired Windows BLE devices only. Ctrl+C to exit.");
 // A normal double-click launches the local helper AND opens the web UI.
@@ -52,7 +60,7 @@ if (!args.Contains("--no-browser", StringComparer.OrdinalIgnoreCase))
         try
         {
             Process.Start(new ProcessStartInfo(
-                "https://alex00pirotskyi.github.io/mouse_test/")
+                "http://127.0.0.1:8765/")
             {
                 UseShellExecute = true
             });

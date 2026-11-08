@@ -64,12 +64,12 @@
         <article class="card"><span class="num">06 / CENTER</span><h3>Shake-to-recenter</h3><p>Re-center the virtual cursor with one action. Pointer Lock gives continuous relative motion at screen edges.</p></article>
       </div>
     </section>
-    <section id="install"><div class="eyebrow">Installation</div><h2>Use your already-paired Mudra Band</h2><p class="section-sub">The native companion must be running once to read the OS-paired band. Windows enumerates paired BLE devices; macOS reuses connected FFF0 peripherals. Neither helper scans or re-pairs. Click “Start Smart Cursor” and the page checks the companion automatically. Air Touch OFF restores native HID; ON enables virtual mode after a trusted user click.</p>
+    <section id="install"><div class="eyebrow">Installation</div><h2>Use your already-paired Mudra Band</h2><p class="section-sub">Launch the downloaded desktop companion once. It opens its own local Smart Cursor page and begins reading device status automatically—no separate browser permission or Connect button. Windows uses paired devices; macOS uses system-connected FFF0 devices. No Bluetooth scans, re-pairing or firmware changes. Air Touch OFF restores native HID; ON allows virtual mode after a user click.</p>
       <div class="install">
         <div class="box"><h3>1. Bookmarklet</h3><p class="small">Show the bookmarks bar (<code>Ctrl+Shift+B</code> on Windows). Drag the button below onto it. It contains the full script, so it doesn't fetch code from an external server.</p>
           <div class="actions"><a class="btn primary" id="bookmarklet" draggable="true" href="#install">✦ Mudra Smart Cursor</a><button class="btn" type="button" id="copy">Copy bookmarklet</button></div>
-          <ol class="steps"><li>Visit an HTTPS website or use the “Test here” button above.</li><li>Click the bookmark to launch the floating Mudra panel.</li><li>Launch the Windows or macOS companion, then click Start Smart Cursor. Allow the one-time Chrome loopback permission if prompted; the site retries automatically.</li><li>When Air Touch is ON, click Enter virtual. Turn Air Touch OFF to return to the native HID cursor.</li></ol>
-          <div class="help"><strong>Windows:</strong> <a href="https://github.com/alex00Pirotskyi/mouse_test/actions/workflows/windows-helper.yml" target="_blank" rel="noopener">Windows x64 desktop companion</a>. <strong>macOS:</strong> <a href="https://github.com/alex00Pirotskyi/mouse_test/actions/workflows/macos-helper.yml" target="_blank" rel="noopener">Mac desktop companion (Apple Silicon / Intel)</a>. Both run on your computer and serve the same localhost status API. Some sites block bookmarklets; use the included Chrome extension there.</div>
+          <ol class="steps"><li>Visit an HTTPS website or use the “Test here” button above.</li><li>Click the bookmark to launch the floating Mudra panel.</li><li>Double-click the Windows or macOS companion. It opens its own local page at <code>127.0.0.1:8765</code> and checks device status without additional browser permissions.</li><li>When Air Touch is ON, click Enter virtual. Turn Air Touch OFF to return to the native HID cursor.</li></ol>
+          <div class="help"><strong>One-click desktop launch:</strong> <a href="https://github.com/alex00Pirotskyi/mouse_test/releases/download/preview/MudraSmartCursorBridge-Windows-x64.exe" target="_blank" rel="noopener">Download Windows .exe</a> · <a href="https://github.com/alex00Pirotskyi/mouse_test/releases/download/preview/MudraSmartCursorBridge-macOS-arm64.zip" target="_blank" rel="noopener">Download Mac Apple Silicon</a> · <a href="https://github.com/alex00Pirotskyi/mouse_test/releases/download/preview/MudraSmartCursorBridge-macOS-x86_64.zip" target="_blank" rel="noopener">Download Mac Intel</a>. Run the app; it opens <code>http://127.0.0.1:8765/</code> automatically. Unsigned test builds may require OS confirmation.</div>
           <div class="status" id="copyStatus" role="status"></div>
         </div>
         <div class="box"><h3>2. Personalize your defaults</h3><div class="presets"><button class="chip selected" data-preset="balanced">Balanced</button><button class="chip" data-preset="steady">Steady</button><button class="chip" data-preset="fast">Fast</button></div>
@@ -84,7 +84,7 @@
     <section><div class="eyebrow">Try the idea</div><h2>Interactive targeting demo</h2><p class="section-sub">Move your ordinary mouse near any demo button. The page will highlight whichever control is within your current magnetic radius. This demo never triggers actions.</p>
       <div class="demo"><div class="demoarea" id="demo"><button type="button">Search</button><button type="button">Settings</button><button type="button">Continue</button></div><div class="demo-status" id="demoStatus">Move near a button to acquire a target.</div></div>
     </section>
-    <section><div class="eyebrow">Compatibility</div><h2>Things browsers won't let us override</h2><p class="section-sub">A bookmarklet cannot reposition or slow the operating-system cursor, and Chrome may require permission to access 127.0.0.1 (Loopback network). If the browser shows Companion offline, open <code>http://127.0.0.1:8765/api/status</code> on that computer: no response means the native companion is not running/listening. On macOS, the no-scan helper can only see system-connected peripherals exposing FFF0; it cannot list all paired devices. Virtual mode uses Pointer Lock and synthetic clicks, so some sites, embedded frames, protected controls, and drag-and-drop interactions may not work. Sticky selection is a visual targeting aid; it doesn't force native CSS <code>:hover</code> to stay active. Navigation/reloads end the bookmarklet session. Firmware-level orientation re-zeroing requires separate work on the Mudra Band itself.</p></section>
+    <section><div class="eyebrow">Compatibility</div><h2>Things browsers won't let us override</h2><p class="section-sub">A bookmarklet cannot reposition or slow the operating-system cursor. The companion's local page uses same-origin API access without cross-origin loopback prompts; on other websites the bookmarklet may still require loopback permission (Chrome extension recommended). If the browser shows Companion offline, open <code>http://127.0.0.1:8765/api/status</code> on that computer: no response means the native companion is not running/listening. On macOS, the no-scan helper can only see system-connected peripherals exposing FFF0; it cannot list all paired devices. Virtual mode uses Pointer Lock and synthetic clicks, so some sites, embedded frames, protected controls, and drag-and-drop interactions may not work. Sticky selection is a visual targeting aid; it doesn't force native CSS <code>:hover</code> to stay active. Navigation/reloads end the bookmarklet session. Firmware-level orientation re-zeroing requires separate work on the Mudra Band itself.</p></section>
   </main>
   <footer class="foot"><span>Mudra Smart Cursor · Open source browser-side prototype</span><span>100% local execution · No telemetry · No device identification</span></footer>
 </div>
@@ -97,6 +97,11 @@ function rebuild(){
   const source = ENGINE_SOURCE.replace('/*MUDRA_PRESETS*/null',JSON.stringify(selected));
   const url='javascript:'+encodeURIComponent(source);
   for(const id of ['bookmarklet','bookmarkletHero']) document.getElementById(id).href=url;
+}
+// The native companion hosts this SAME self-contained page at localhost.
+ // One desktop launch opens the local site and starts the status UI.
+if (location.protocol === 'http:' && location.hostname === '127.0.0.1' && location.port === '8765') {
+  queueMicrotask(activateSmartCursorOnThisPage);
 }
 function sync(){
   document.getElementById('radius').value=state.radius;document.getElementById('radiusOutput').textContent=state.radius+' px';
@@ -114,13 +119,15 @@ for(const [id,key] of [['radius','radius'],['sensitivity','sensitivity'],['dwell
     document.querySelectorAll('[data-preset]').forEach(b=>b.classList.remove('selected'));sync();
   });
 }
-document.getElementById('launchNow').addEventListener('click', () => {
-  // Same trusted self-contained script that powers the bookmarklet. Avoid
-  // eval/Function; GitHub Pages is a regular HTTPS document.
+function activateSmartCursorOnThisPage() {
   const script = document.createElement('script');
   script.textContent = ENGINE_SOURCE.replace('/*MUDRA_PRESETS*/null', JSON.stringify(state));
   document.documentElement.appendChild(script);
   script.remove();
+}
+document.getElementById('launchNow').addEventListener('click', () => {
+  // Same trusted self-contained script as the bookmarklet; no network load.
+  activateSmartCursorOnThisPage();
   if (!window.__MUDRA_SMART_CURSOR_V1__) {
     document.getElementById('copyStatus').textContent = 'Browser blocked on-page injection. Install the bookmarklet instead.';
   }
