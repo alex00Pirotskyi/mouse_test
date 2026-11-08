@@ -1,0 +1,48 @@
+name: Build macOS system-connected-device helper
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mac-helper/**'
+      - '.github/workflows/macos-helper.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos-helper:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build macOS CoreBluetooth app bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "mac-helper/dist/MudraSmartCursorBridge.app/Contents/MacOS"
+          cp mac-helper/Info.plist "mac-helper/dist/MudraSmartCursorBridge.app/Contents/Info.plist"
+          plutil -lint mac-helper/dist/MudraSmartCursorBridge.app/Contents/Info.plist
+          swiftc -O mac-helper/Sources/MudraSmartCursorBridge/main.swift -framework CoreBluetooth -framework Network -o "mac-helper/dist/MudraSmartCursorBridge.app/Contents/MacOS/MudraSmartCursorBridge"
+          codesign --force --sign - "mac-helper/dist/MudraSmartCursorBridge.app"
+          file "mac-helper/dist/MudraSmartCursorBridge.app/Contents/MacOS/MudraSmartCursorBridge"
+          "mac-helper/dist/MudraSmartCursorBridge.app/Contents/MacOS/MudraSmartCursorBridge" --self-test
+          cp mac-helper/README.md mac-helper/dist/README.md
+      - name: Package macOS companion
+        shell: bash
+        run: |
+          cd mac-helper
+          ditto -c -k --sequesterRsrc --keepParent dist "MudraSmartCursorBridge-macos-${{ matrix.arch }}.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MudraSmartCursorBridge-macos-${{ matrix.arch }}
+          path: mac-helper/MudraSmartCursorBridge-macos-${{ matrix.arch }}.zip
+          retention-days: 30
