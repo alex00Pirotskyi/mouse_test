@@ -5,7 +5,7 @@
   "description": "Browser precision layer for Mudra BLE HID air mouse",
   "scripts": {
     "build": "node build.js",
-    "check": "node --check src/engine.js && node --check extension/background.js && node --check build.js && node tests/test-build.js"
+    "check": "node --check src/engine.js && node --check extension/background.js && node --check build.js && node tests/test-build.js && node tests/test-ble-probe.js"
   },
   "license": "MIT"
 }

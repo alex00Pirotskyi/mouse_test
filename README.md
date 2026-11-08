@@ -1,3 +1,19 @@
+## No-install Flutter Web feasibility test (first)
+
+[**Open Mudra browser-only BLE probe**](https://alex00pirotskyi.github.io/mouse_test/ble-probe.html)
+
+**Goal:** Determine whether Chrome can read Mudra's GATT service **while the band remains connected to Windows/macOS as a HID mouse**. The page requires **no app download, helper, driver, OS unpairing, or firmware changes**. It uses native Web Bluetooth, which is the exact browser capability underneath Flutter Web's `universal_ble`. We deliberately use a tiny vanilla JS diagnostic first, so a failure can be attributed to the browser/OS/hardware rather than to Flutter.
+
+1. Keep Mudra connected normally as an OS HID mouse.
+2. Open the HTTPS test. It calls `navigator.bluetooth.getDevices()` to list Bluetooth devices **already authorized for that website origin**; this is not an enumeration of OS-paired devices and performs no scan.
+3. If Mudra has previously been authorized, connect to it directly. Otherwise click **Authorize this Mudra in Chrome** once. The filtered browser device chooser may discover nearby devices, so **select only the band already paired with your OS**. The test never initiates OS pairing or uses `acceptAllDevices`.
+4. The probe requests only `FFF0/FFF1`, subscribes to FFF1, sends the read-only GET command `75 00 00`, and attempts optional battery service `180F/2A19`.
+5. Toggle Air Touch using your normal firmware control. Check whether the indicator changes and whether the HID mouse still moves. Copy the diagnostic report back into ChatGPT if any step fails.
+
+**Interpretation:** A device missing from `getDevices()` does **not** mean Windows/macOS has unpaired it; it means that origin lacks prior browser permission. If the band is absent from the chooser or the GATT connection fails while HID is active, Flutter Web cannot bypass that limitation. If FFF0/FFF1 and notifications work, we can move the same protocol into a true Flutter Web UI using `universal_ble`.
+
+---
+
 # Mudra Smart Cursor — Windows + macOS
 
 Web precision assistance for the Mudra Band **already paired/connected to your OS as a BLE HID mouse**.

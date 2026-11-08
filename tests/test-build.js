@@ -41,3 +41,5 @@ assert.deepEqual(manifest.host_permissions,['http://127.0.0.1:8765/*']);
 assert.ok(source.includes('fetch(request)'));
 assert.ok(!source.includes('XMLHttpRequest'));
 console.log('Static build and security tests passed.');
+
+assert.ok(fs.existsSync(path.join(base,'ble-probe.html')), 'No-install BLE probe must ship with site');
