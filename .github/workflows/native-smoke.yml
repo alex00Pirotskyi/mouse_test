@@ -1,0 +1,99 @@
+name: Smoke-test native localhost UI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/native-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build self-contained Windows executable
+        shell: pwsh
+        run: dotnet publish windows-helper/MudraSmartCursorBridge.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o windows-helper/dist
+      - name: Start real EXE and verify page and JSON on localhost
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path 'windows-helper/dist/MudraSmartCursorBridge.exe').Path
+          $stdout = Join-Path $env:RUNNER_TEMP 'mudra-stdout.txt'
+          $stderr = Join-Path $env:RUNNER_TEMP 'mudra-stderr.txt'
+          $process = Start-Process -FilePath $exe -ArgumentList '--no-browser' -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          try {
+            $success = $false
+            for ($i = 0; $i -lt 40; $i++) {
+              Start-Sleep -Milliseconds 750
+              try {
+                $page = Invoke-WebRequest -Uri 'http://127.0.0.1:8765/' -TimeoutSec 2
+                $json = Invoke-RestMethod -Uri 'http://127.0.0.1:8765/api/status' -TimeoutSec 2
+                if ($page.StatusCode -eq 200 -and $page.Content.Contains('Mudra Smart Cursor') -and $null -ne $json.connected) {
+                  Write-Output "PASS: Native Windows exe served bundled website and JSON status."
+                  $success = $true
+                  break
+                }
+              } catch {}
+              if ($process.HasExited) { break }
+            }
+            if (-not $success) {
+              Get-Content $stdout -ErrorAction SilentlyContinue
+              Get-Content $stderr -ErrorAction SilentlyContinue
+              throw 'FAIL: Windows exe did not serve expected localhost page / JSON.'
+            }
+          } finally {
+            if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
+          }
+  macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile app with embedded site and test server endpoints
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="smoke/MudraSmartCursorBridge.app"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          cp mac-helper/Info.plist "$APP/Contents/Info.plist"
+          cp index.html "$APP/Contents/Resources/index.html"
+          swiftc -O mac-helper/Sources/MudraSmartCursorBridge/main.swift \
+            -framework CoreBluetooth -framework Network -framework AppKit \
+            -o "$APP/Contents/MacOS/MudraSmartCursorBridge"
+          codesign --force --sign - "$APP"
+          "$APP/Contents/MacOS/MudraSmartCursorBridge" --self-test
+          "$APP/Contents/MacOS/MudraSmartCursorBridge" --no-browser > "$RUNNER_TEMP/mudra-mac.log" 2>&1 &
+          PID=$!
+          trap 'kill "$PID" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 40); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8765/ -o "$RUNNER_TEMP/mudra-index.html" 2>/dev/null; then
+              if grep -q 'Mudra Smart Cursor' "$RUNNER_TEMP/mudra-index.html" &&
+                 curl -fsS --max-time 2 http://127.0.0.1:8765/api/status | grep -q '"connected"'; then
+                echo "PASS: macOS ${{ matrix.arch }} served bundled website and JSON."
+                ready=1
+                break
+              fi
+            fi
+            if ! kill -0 "$PID" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat "$RUNNER_TEMP/mudra-mac.log"
+            echo 'FAIL: Mac app did not serve localhost page / JSON.'
+            exit 1
+          fi
